@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Intellinvest · Watchlist</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>
+:root{--navy-900:#060D18;--navy-800:#0A1628;--navy-700:#0F1F38;--navy-600:#152843;--navy-500:#1D3554;--border:rgba(0,198,255,0.10);--border-hi:rgba(0,198,255,0.25);--cyan:#00C6FF;--cyan-dim:#0077AA;--cyan-glow:rgba(0,198,255,0.12);--green:#00E5A0;--green-dim:rgba(0,229,160,0.12);--red:#FF4560;--red-dim:rgba(255,69,96,0.12);--gold:#F0B90B;--gold-dim:rgba(240,185,11,0.10);--amber:#FF9F43;--text-1:#E4EEF8;--text-2:#7A9BBD;--text-3:#3A5878;--font-mono:'IBM Plex Mono',monospace;--font-sans:'IBM Plex Sans',sans-serif;--sidebar-w:260px;--topbar-h:52px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--navy-900);font-family:var(--font-sans);color:var(--text-1);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");background-repeat:repeat;background-size:128px;opacity:0.35;}
+
+/* ── TICKER BAR ─────────────────────────────────────────────────────────── */
+.ticker-bar{position:fixed;top:0;left:0;right:0;z-index:200;height:var(--topbar-h);background:var(--navy-900);border-bottom:1px solid var(--border);display:flex;align-items:center;overflow:hidden;}
+.ticker-brand{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 18px;border-right:1px solid var(--border);height:100%;background:var(--navy-800);min-width:var(--sidebar-w);}
+.brand-logo-wrap{position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-logo-wrap::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:1.5px solid rgba(0,198,255,0.35);animation:logoRing 4s linear infinite;}
+@keyframes logoRing{to{transform:rotate(360deg);}}
+.brand-logo-img{width:34px;height:34px;border-radius:50%;object-fit:contain;background:linear-gradient(135deg,var(--navy-600),var(--navy-500));border:1.5px solid var(--border-hi);box-shadow:0 0 14px rgba(0,198,255,0.25);padding:4px;filter:brightness(1.3) drop-shadow(0 0 5px rgba(0,198,255,0.4));display:block;}
+.brand-logo-fallback{display:none;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),#0050CC);align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:13px;color:#fff;letter-spacing:-0.04em;}
+.brand-text-wrap{display:flex;flex-direction:column;gap:1px;}
+.brand-name{font-family:var(--font-sans);font-size:14px;font-weight:700;letter-spacing:0.02em;color:var(--text-1);line-height:1;}
+.brand-name span{color:var(--cyan);}
+.brand-sub{font-family:var(--font-mono);font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3);}
+.ticker-scroll-wrap{flex:1;overflow:hidden;height:100%;display:flex;align-items:center;position:relative;}
+.ticker-scroll-wrap::before,.ticker-scroll-wrap::after{content:'';position:absolute;top:0;bottom:0;width:40px;z-index:2;}
+.ticker-scroll-wrap::before{left:0;background:linear-gradient(90deg,var(--navy-900),transparent);}
+.ticker-scroll-wrap::after{right:0;background:linear-gradient(-90deg,var(--navy-900),transparent);}
+.ticker-track{display:inline-flex;align-items:center;white-space:nowrap;animation:tickerScroll 55s linear infinite;}
+.ticker-track:hover{animation-play-state:paused;}
+@keyframes tickerScroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.t-item{display:inline-flex;align-items:center;gap:8px;padding:0 20px;border-right:1px solid var(--border);font-family:var(--font-mono);font-size:11px;cursor:default;transition:background 0.2s;}
+.t-item:hover{background:var(--cyan-glow);}
+.t-sym{color:var(--text-2);font-weight:500;letter-spacing:0.06em;}
+.t-val{color:var(--text-1);font-weight:600;}
+.t-chg.up{color:var(--green);}.t-chg.dn{color:var(--red);}
+.ticker-right{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 14px;border-left:1px solid var(--border);height:100%;min-width:180px;}
+.live-badge{display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;}
+.live-badge.open{color:var(--green);}.live-badge.closed{color:var(--red);}.live-badge.premarket{color:var(--amber);}
+.live-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.live-dot.blink{background:var(--green);animation:blink 1.8s ease-in-out infinite;box-shadow:0 0 5px var(--green);}
+.live-dot.off{background:var(--red);animation:none;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.2;}}
+.market-timer{font-family:var(--font-mono);font-size:9px;color:var(--amber);letter-spacing:0.05em;white-space:nowrap;}
+.clock{font-family:var(--font-mono);font-size:11px;color:var(--text-3);letter-spacing:0.06em;}
+
+/* ── SIDEBAR ────────────────────────────────────────────────────────────── */
+.sidebar{position:fixed;left:0;top:var(--topbar-h);bottom:0;width:var(--sidebar-w);background:var(--navy-800);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;overflow-y:auto;}
+.sidebar-logo-section{padding:28px 20px 22px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;align-items:center;background:linear-gradient(180deg,rgba(0,198,255,0.03),transparent);position:relative;overflow:hidden;}
+.sidebar-logo-section::before{content:'';position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(0,198,255,0.07),transparent 70%);pointer-events:none;}
+.sidebar-logo-ring-wrap{position:relative;width:80px;height:80px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.sidebar-logo-ring-wrap::before{content:'';position:absolute;inset:-8px;border-radius:50%;border:1.5px solid rgba(0,198,255,0.20);animation:ringPulse 3s ease-in-out infinite;}
+.sidebar-logo-ring-wrap::after{content:'';position:absolute;inset:-16px;border-radius:50%;border:1px solid rgba(0,198,255,0.08);animation:ringPulse 3s ease-in-out infinite 0.6s;}
+@keyframes ringPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.3;transform:scale(1.05);}}
+.sidebar-logo-img{width:76px;height:76px;border-radius:50%;object-fit:contain;border:2px solid var(--border-hi);box-shadow:0 0 24px rgba(0,198,255,0.18),0 0 48px rgba(0,198,255,0.06);background:linear-gradient(135deg,var(--navy-600),var(--navy-500));padding:10px;filter:brightness(1.4) contrast(1.05) drop-shadow(0 0 8px rgba(0,198,255,0.35));animation:logoFloat 4s ease-in-out infinite;display:block;}
+@keyframes logoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-5px);}}
+.sidebar-logo-fallback{display:none;width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#0F1F38,#152843);border:2px solid var(--border-hi);align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:22px;color:var(--cyan);animation:logoFloat 4s ease-in-out infinite;}
+.sidebar-brand-name{font-family:var(--font-sans);font-size:17px;font-weight:700;color:var(--text-1);margin-bottom:2px;text-align:center;}
+.sidebar-brand-name span{color:var(--cyan);}
+.sidebar-brand-tag{font-family:var(--font-mono);font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-3);text-align:center;}
+.sidebar-profile{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.avatar-ring{width:38px;height:38px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--cyan),#0050AA);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:14px;color:#fff;box-shadow:0 0 14px rgba(0,198,255,0.2);position:relative;}
+.avatar-ring::after{content:'';position:absolute;inset:-3px;border-radius:50%;border:2px solid transparent;border-top-color:var(--cyan);border-right-color:var(--cyan);animation:spinRing 4s linear infinite;}
+@keyframes spinRing{to{transform:rotate(360deg);}}
+.profile-name{font-size:13px;font-weight:600;color:var(--text-1);line-height:1;margin-bottom:2px;}
+.profile-role{font-family:var(--font-mono);font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:var(--cyan);}
+.sidebar-section-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-3);padding:16px 20px 7px;}
+.nav-item-custom{display:flex;align-items:center;gap:12px;padding:10px 20px;border-left:3px solid transparent;text-decoration:none;color:var(--text-2);font-size:13px;font-weight:500;transition:all 0.2s;}
+.nav-item-custom:hover,.nav-item-custom.active{background:var(--cyan-glow);border-left-color:var(--cyan);color:var(--text-1);}
+.nav-icon{width:15px;height:15px;opacity:0.55;flex-shrink:0;}
+.nav-item-custom:hover .nav-icon,.nav-item-custom.active .nav-icon{opacity:1;}
+.nav-logout{margin-top:auto;}
+.sidebar-footer{padding:14px 20px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:9px;color:var(--text-3);letter-spacing:0.08em;}
+
+/* ── MAIN ───────────────────────────────────────────────────────────────── */
+.main-content{margin-left:var(--sidebar-w);margin-top:var(--topbar-h);padding:22px 24px;min-height:calc(100vh - var(--topbar-h));}
+.page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.page-title-lbl{font-family:var(--font-mono);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-3);margin-bottom:4px;}
+.page-heading{font-family:var(--font-sans);font-size:21px;font-weight:600;color:var(--text-1);line-height:1;}
+.page-sub{font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-top:4px;}
+.panel{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--navy-800);}
+.panel-title{font-family:var(--font-mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-2);font-weight:600;}
+.panel-tag{font-family:var(--font-mono);font-size:8px;letter-spacing:0.12em;padding:2px 8px;border-radius:3px;border:1px solid var(--border);color:var(--text-3);text-transform:uppercase;}
+.section-divider{display:flex;align-items:center;gap:12px;margin:8px 0 20px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-3);}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── WATCHLIST TABLE ────────────────────────────────────────────────────── */
+.watch-table{width:100%;border-collapse:collapse;font-size:12px;}
+.watch-table th{font-family:var(--font-mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3);padding:8px 14px;border-bottom:1px solid var(--border);text-align:left;font-weight:500;}
+.watch-table th:not(:first-child){text-align:right;}
+.watch-table td{padding:10px 14px;border-bottom:1px solid rgba(21,40,67,0.7);vertical-align:middle;}
+.watch-table td:not(:first-child){text-align:right;font-family:var(--font-mono);font-size:11px;}
+.watch-table tr:hover td{background:var(--cyan-glow);}
+.watch-table tr:last-child td{border-bottom:none;}
+.sym-name{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-1);}
+.sym-full{font-size:10px;color:var(--text-3);margin-top:1px;}
+.chg-pos{color:var(--green);}.chg-neg{color:var(--red);}
+.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:3px;font-family:var(--font-mono);font-size:9px;font-weight:600;letter-spacing:0.06em;}
+.chip.buy{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,229,160,0.25);}
+.chip.hold{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(240,185,11,0.25);}
+.chip.watch{background:rgba(0,198,255,0.08);color:var(--cyan);border:1px solid rgba(0,198,255,0.25);}
+.chip.sell{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,69,96,0.25);}
+.wl-status{font-family:var(--font-mono);font-size:9px;color:var(--text-3);letter-spacing:0.08em;}
+.refresh-btn{font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 10px;border-radius:3px;border:1px solid var(--border);background:transparent;color:var(--text-2);cursor:pointer;transition:all 0.2s;}
+.refresh-btn:hover{background:var(--cyan-glow);border-color:var(--cyan);color:var(--cyan);}
+.add-stock-btn{font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 12px;border-radius:3px;border:1px solid var(--border-hi);background:transparent;color:var(--cyan);cursor:pointer;transition:all 0.2s;}
+.add-stock-btn:hover{background:var(--cyan-glow);}
+.remove-btn{background:none;border:none;color:var(--text-3);cursor:pointer;font-size:10px;padding:2px 6px;margin-left:4px;border-radius:3px;transition:all 0.15s;}
+.remove-btn:hover{background:var(--red-dim);color:var(--red);}
+.wl-loading-row td{font-family:var(--font-mono);font-size:10px;color:var(--text-3);padding:20px 14px;text-align:center;}
+.analyse-link{font-family:var(--font-mono);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:var(--cyan);text-decoration:none;padding:3px 8px;border-radius:3px;border:1px solid rgba(0,198,255,0.2);transition:all 0.15s;cursor:pointer;background:none;}
+.analyse-link:hover{background:var(--cyan-glow);}
+
+/* ── MODAL ──────────────────────────────────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(6,13,24,0.85);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--navy-800);border:1px solid var(--border-hi);border-radius:10px;padding:24px;width:440px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+.modal-title{font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-2);margin-bottom:14px;}
+.modal-search{width:100%;background:var(--navy-700);border:1px solid var(--border);border-radius:5px;padding:9px 13px;font-family:var(--font-mono);font-size:12px;color:var(--text-1);outline:none;margin-bottom:10px;transition:border-color 0.2s;}
+.modal-search:focus{border-color:var(--cyan);}
+.modal-search::placeholder{color:var(--text-3);}
+.modal-results{max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;margin-bottom:14px;}
+.modal-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;}
+.modal-item:last-child{border-bottom:none;}
+.modal-item:hover{background:var(--cyan-glow);}
+.modal-item-sym{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--cyan);}
+.modal-item-name{font-family:var(--font-mono);font-size:10px;color:var(--text-2);}
+.modal-add-tag{font-family:var(--font-mono);font-size:9px;color:var(--green);padding:2px 6px;border-radius:3px;border:1px solid rgba(0,229,160,0.25);background:var(--green-dim);}
+.modal-exists-tag{font-family:var(--font-mono);font-size:9px;color:var(--text-3);padding:2px 6px;border-radius:3px;border:1px solid var(--border);}
+.modal-empty{font-family:var(--font-mono);font-size:10px;color:var(--text-3);padding:16px;text-align:center;}
+.modal-close-btn{width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:4px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-2);cursor:pointer;transition:all 0.2s;}
+.modal-close-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+
+/* ── STOCK ANALYSIS SECTION ─────────────────────────────────────────────── */
+.search-card{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;padding:20px 22px;margin-bottom:14px;}
+.search-title{font-family:var(--font-mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-2);margin-bottom:14px;}
+.search-row{display:grid;grid-template-columns:1fr 180px auto;gap:12px;align-items:end;}
+.search-group{display:flex;flex-direction:column;gap:5px;}
+.search-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);}
+.nse-search-wrap{position:relative;}
+.nse-search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none;}
+.nse-input{width:100%;background:var(--navy-600);border:1px solid var(--border);border-radius:5px;padding:9px 44px 9px 34px;font-family:var(--font-mono);font-size:12px;color:var(--text-1);outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+.nse-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,198,255,0.08);}
+.nse-input::placeholder{color:var(--text-3);}
+.nse-hint{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:9px;color:var(--text-3);}
+.suggestions-box{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--navy-800);border:1px solid var(--border-hi);border-radius:6px;z-index:50;max-height:200px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.suggestions-box.show{display:block;}
+.suggestion-item{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:11px;transition:background 0.15s;}
+.suggestion-item:last-child{border-bottom:none;}
+.suggestion-item:hover{background:var(--cyan-glow);}
+.sug-name{color:var(--text-2);flex:1;}
+.sug-code{color:var(--cyan);font-weight:600;font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(0,198,255,0.08);}
+.period-select{background:var(--navy-600);border:1px solid var(--border);border-radius:5px;padding:9px 12px;font-family:var(--font-mono);font-size:12px;color:var(--text-1);outline:none;width:100%;}
+.period-select:focus{border-color:var(--cyan);}
+.run-btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;padding:10px 20px;border-radius:5px;border:none;background:linear-gradient(135deg,var(--cyan),#0055CC);color:#fff;font-weight:600;cursor:pointer;box-shadow:0 4px 18px rgba(0,198,255,0.2);white-space:nowrap;transition:all 0.2s;}
+.run-btn:hover{box-shadow:0 8px 28px rgba(0,198,255,0.3);transform:translateY(-1px);}
+
+/* ── ERROR ──────────────────────────────────────────────────────────────── */
+.error-box{display:flex;align-items:center;gap:10px;background:var(--red-dim);border:1px solid rgba(255,69,96,0.3);border-radius:6px;padding:12px 16px;font-family:var(--font-mono);font-size:11px;color:var(--red);margin-bottom:14px;}
+
+/* ── STOCK HEADER ───────────────────────────────────────────────────────── */
+.stock-header{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.stock-identity{display:flex;align-items:center;gap:16px;}
+.stock-emblem{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--navy-600),var(--navy-500));border:1px solid var(--border-hi);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--cyan);flex-shrink:0;}
+.stock-name-full{font-family:var(--font-sans);font-size:15px;font-weight:600;color:var(--text-1);margin-bottom:4px;}
+.stock-meta{display:flex;align-items:center;gap:8px;}
+.stock-code-chip{font-family:var(--font-mono);font-size:9px;letter-spacing:0.1em;padding:2px 7px;border-radius:3px;background:rgba(0,198,255,0.08);border:1px solid rgba(0,198,255,0.2);color:var(--cyan);}
+.stock-sector{font-family:var(--font-mono);font-size:9px;color:var(--text-3);}
+.stock-industry{font-family:var(--font-mono);font-size:9px;color:var(--text-3);}
+.stock-price-block{text-align:right;}
+.stock-price{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--text-1);line-height:1;}
+
+/* ── STAT TILES ─────────────────────────────────────────────────────────── */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
+.stat-tile{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
+.stat-tile-lbl{font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px;}
+.stat-tile-val{font-family:var(--font-mono);font-size:20px;font-weight:700;line-height:1;margin-bottom:4px;}
+.stat-tile-sub{font-family:var(--font-mono);font-size:9px;color:var(--text-3);}
+.c-green{color:var(--green);}.c-red{color:var(--red);}.c-cyan{color:var(--cyan);}.c-gold{color:var(--gold);}
+
+/* ── RESULTS GRID ───────────────────────────────────────────────────────── */
+.results-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.prediction-card{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.prediction-card-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--navy-800);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2);}
+.prediction-card-body{padding:16px;}
+.verdict-row{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.verdict-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.verdict-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:3px;}
+.verdict-value{font-family:var(--font-sans);font-size:14px;font-weight:700;}
+.v-green{color:var(--green);}.v-red{color:var(--red);}.v-amber{color:var(--amber);}
+.tomorrow-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:4px;font-family:var(--font-mono);font-size:11px;font-weight:600;margin-bottom:14px;}
+.tomorrow-badge.pos{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,229,160,0.25);}
+.tomorrow-badge.neg{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,69,96,0.25);}
+.tomorrow-badge.neu{background:var(--gold-dim);color:var(--gold);border:1px solid rgba(240,185,11,0.25);}
+.layman-section{margin-bottom:12px;}
+.layman-section-lbl{display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;}
+.layman-text{font-family:var(--font-sans);font-size:12px;color:var(--text-2);line-height:1.6;}
+
+/* ── FUNDAMENTALS CARD ──────────────────────────────────────────────────── */
+.fund-card{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.fund-card-head{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--navy-800);font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2);}
+.fund-grid{padding:6px 0;}
+.fund-row{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid rgba(21,40,67,0.6);}
+.fund-row:last-child{border-bottom:none;}
+.fund-key{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:10px;color:var(--text-3);}
+.fund-key svg{width:12px;height:12px;flex-shrink:0;color:var(--text-3);}
+.fund-val{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-1);text-align:right;}
+.fund-val.hi{color:var(--green);}
+.fund-val.pos{color:var(--green);}.fund-val.neg{color:var(--red);}
+
+/* ── 52W RANGE ──────────────────────────────────────────────────────────── */
+.week52-section{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin-bottom:12px;}
+.week52-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2);}
+.week52-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.week52-lbl{font-family:var(--font-mono);font-size:9px;color:var(--text-3);text-align:center;min-width:72px;line-height:1.4;}
+.week52-lbl.low-lbl{color:var(--red);}.week52-lbl.high-lbl{color:var(--green);}
+.week52-track{flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;position:relative;}
+.week52-fill{height:100%;background:linear-gradient(90deg,var(--cyan-dim),var(--cyan));border-radius:4px;position:relative;min-width:8px;}
+.week52-marker{position:absolute;right:-3px;top:50%;transform:translateY(-50%);width:6px;height:12px;background:var(--text-1);border-radius:2px;box-shadow:0 0 6px var(--cyan);}
+.week52-pct{font-family:var(--font-mono);font-size:10px;font-weight:600;color:var(--cyan);min-width:38px;text-align:right;}
+.ma-row{display:flex;flex-wrap:wrap;gap:6px;}
+.ma-chip{font-family:var(--font-mono);font-size:9px;padding:3px 9px;border-radius:3px;}
+.ma-chip.above{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,229,160,0.2);}
+.ma-chip.below{background:var(--red-dim);color:var(--red);border:1px solid rgba(255,69,96,0.2);}
+
+/* ── CHART PANEL ────────────────────────────────────────────────────────── */
+.chart-panel{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:12px;}
+.chart-panel-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--navy-800);}
+.chart-panel-title{font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2);}
+.chart-legend{display:flex;gap:12px;align-items:center;}
+.cl-item{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9px;color:var(--text-3);}
+.cl-line{width:18px;height:2px;border-radius:1px;}
+#returnChart{width:100%;height:280px;}
+
+/* ── TECHNICAL ACCORDION ────────────────────────────────────────────────── */
+.tech-accordion{background:var(--navy-700);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:12px;}
+.tech-accordion-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;font-family:var(--font-mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2);background:var(--navy-800);transition:background 0.2s;user-select:none;}
+.tech-accordion-head:hover{background:var(--navy-700);}
+.tech-chevron{transition:transform 0.2s;}
+.tech-accordion-head.open .tech-chevron{transform:rotate(180deg);}
+.tech-body{display:none;padding:16px;}
+.tech-body.open{display:block;}
+.tech-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+.tech-tile{background:var(--navy-800);border:1px solid var(--border);border-radius:6px;padding:12px 14px;}
+.tech-tile-lbl{font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px;}
+.tech-tile-val{font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--text-1);line-height:1;}
+.c-text{color:var(--text-2);}
+.tech-note{font-family:var(--font-mono);font-size:9px;color:var(--text-3);line-height:1.7;border-top:1px solid var(--border);padding-top:12px;}
+
+/* ── EMPTY STATE ────────────────────────────────────────────────────────── */
+.empty-state{text-align:center;padding:40px 24px;background:var(--navy-700);border:1px solid var(--border);border-radius:8px;}
+.empty-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--navy-600),var(--navy-500));border:1px solid var(--border-hi);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;}
+.empty-title{font-family:var(--font-sans);font-size:15px;font-weight:600;color:var(--text-1);margin-bottom:8px;}
+.empty-sub{font-family:var(--font-mono);font-size:10px;color:var(--text-3);line-height:1.8;margin-bottom:16px;}
+.stock-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+.stock-chip{font-family:var(--font-mono);font-size:10px;padding:5px 12px;border-radius:4px;background:var(--navy-800);border:1px solid var(--border);color:var(--text-2);cursor:pointer;transition:all 0.15s;}
+.stock-chip:hover{background:var(--cyan-glow);border-color:var(--cyan);color:var(--cyan);}
+
+/* ── FADE ANIMATIONS ────────────────────────────────────────────────────── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fadeUp 0.35s ease both;}
+.fade-in-d1{animation:fadeUp 0.35s 0.07s ease both;}
+.fade-in-d2{animation:fadeUp 0.35s 0.14s ease both;}
+.fade-in-d3{animation:fadeUp 0.35s 0.21s ease both;}
+.fade-in-d4{animation:fadeUp 0.35s 0.28s ease both;}
+</style>
+</head>
+<body>
+
+<!-- ── MODAL ────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="addStockModal">
+  <div class="modal-box">
+    <div class="modal-title">Add Stock to Watchlist</div>
+    <input class="modal-search" id="stockSearch" placeholder="Search by name or NSE symbol…" oninput="filterStocks(this.value)"/>
+    <div class="modal-results" id="stockResults"></div>
+    <button class="modal-close-btn" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<!-- ── TICKER BAR ───────────────────────────────────────────────────────── -->
+<div class="ticker-bar">
+  <div class="ticker-brand">
+    <div class="brand-logo-wrap">
+      <img src="/static/logo.png" class="brand-logo-img" alt="II"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <div class="brand-logo-fallback">II</div>
+    </div>
+    <div class="brand-text-wrap">
+      <div class="brand-name">Intelli<span>invest</span></div>
+      <div class="brand-sub">Portfolio Intelligence · v3.2</div>
+    </div>
+  </div>
+  <div class="ticker-scroll-wrap">
+    <div class="ticker-track">
+      {% for stock in market %}
+      <div class="t-item">
+        <span class="t-sym">{{ stock.name }}</span>
+        <span class="t-val">₹{{ stock.price }}</span>
+        <span class="t-chg {{ 'up' if stock.change|float > 0 else 'dn' }}">{{ "▲" if stock.change|float > 0 else "▼" }} {{ stock.change }}%</span>
+      </div>
+      {% endfor %}
+      <div class="t-item"><span class="t-sym">NIFTY 50</span><span class="t-val">24,261</span><span class="t-chg dn">▼ 2.28%</span></div>
+      <div class="t-item"><span class="t-sym">SENSEX</span><span class="t-val">79,943</span><span class="t-chg dn">▼ 1.90%</span></div>
+      <div class="t-item"><span class="t-sym">XAU/INR</span><span class="t-val">₹1,56,490</span><span class="t-chg up">▲ 16.01%</span></div>
+      <div class="t-item"><span class="t-sym">USD/INR</span><span class="t-val">91.90</span><span class="t-chg up">▲ 5.51%</span></div>
+      {% for stock in market %}
+      <div class="t-item">
+        <span class="t-sym">{{ stock.name }}</span>
+        <span class="t-val">₹{{ stock.price }}</span>
+        <span class="t-chg {{ 'up' if stock.change|float > 0 else 'dn' }}">{{ "▲" if stock.change|float > 0 else "▼" }} {{ stock.change }}%</span>
+      </div>
+      {% endfor %}
+      <div class="t-item"><span class="t-sym">NIFTY 50</span><span class="t-val">24,261</span><span class="t-chg dn">▼ 2.28%</span></div>
+      <div class="t-item"><span class="t-sym">SENSEX</span><span class="t-val">79,943</span><span class="t-chg dn">▼ 1.90%</span></div>
+      <div class="t-item"><span class="t-sym">XAU/INR</span><span class="t-val">₹1,56,490</span><span class="t-chg up">▲ 16.01%</span></div>
+      <div class="t-item"><span class="t-sym">USD/INR</span><span class="t-val">91.90</span><span class="t-chg up">▲ 5.51%</span></div>
+    </div>
+  </div>
+  <div class="ticker-right">
+    <div id="liveBadge" class="live-badge open">
+      <div class="live-dot blink" id="liveDot"></div>
+      <span id="mktTxt">LIVE</span>
+    </div>
+    <div id="mktTimer" class="market-timer" style="display:none"></div>
+    <div class="clock" id="clockEl">—</div>
+  </div>
+</div>
+
+<!-- ── SIDEBAR ──────────────────────────────────────────────────────────── -->
+<div class="sidebar">
+  <div class="sidebar-logo-section">
+    <div class="sidebar-logo-ring-wrap">
+      <img src="/static/logo.png" class="sidebar-logo-img" alt="II"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <div class="sidebar-logo-fallback">II</div>
+    </div>
+    <div class="sidebar-brand-name">Intelli<span>invest</span></div>
+    <div class="sidebar-brand-tag">Portfolio Intelligence Platform</div>
+  </div>
+  <div class="sidebar-profile">
+    <div class="avatar-ring">{{ current_user.username[0].upper() if current_user else 'A' }}</div>
+    <div>
+      <div class="profile-name">{{ current_user.username if current_user else 'Ashutosh' }}</div>
+      <div class="profile-role">Portfolio Analyst · NSE</div>
+    </div>
+  </div>
+  <div class="sidebar-section-label">Navigation</div>
+  <a href="/dashboard" class="nav-item-custom">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.5"/></svg>
+    Dashboard
+  </a>
+  <a href="/predictor" class="nav-item-custom">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Predictor
+  </a>
+  <a href="/watchlist" class="nav-item-custom active">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="17 6 23 6 23 12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Watchlist
+  </a>
+  <a href="/profile" class="nav-item-custom">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke-width="1.5"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke-width="1.5" stroke-linecap="round"/></svg>
+    Profile
+  </a>
+  <a href="/logout" class="nav-item-custom nav-logout">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 17 21 12 16 7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke-width="1.5" stroke-linecap="round"/></svg>
+    Logout
+  </a>
+  <div class="sidebar-footer">Intellinvest v3.2.1<br>NSE · BSE · MCX · RBI</div>
+</div>
+
+<!-- ── MAIN CONTENT ─────────────────────────────────────────────────────── -->
+<div class="main-content">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title-lbl">Market Tracking</div>
+      <div class="page-heading">Watchlist &amp; Stock Analysis</div>
+      <div class="page-sub">Live NSE prices · Add / remove stocks · ML return prediction for any symbol</div>
+    </div>
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);text-align:right;line-height:1.8;">
+      250+ Stocks Available<br>
+      <span style="color:var(--cyan);">yfinance · sklearn</span>
+    </div>
+  </div>
+
+  <!-- ══ SECTION 1: INTERACTIVE WATCHLIST ═════════════════════════════════ -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">Watchlist</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="wl-status" id="wlStatus">NSE · LIVE</span>
+        <button class="refresh-btn" onclick="loadWatchlist()">Refresh</button>
+        <button class="add-stock-btn" onclick="openModal()">+ Add Stock</button>
+      </div>
+    </div>
+    <table class="watch-table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>LTP</th>
+          <th>Chg %</th>
+          <th>52W H / L</th>
+          <th>Mkt Cap</th>
+          <th>Signal</th>
+        </tr>
+      </thead>
+      <tbody id="watchlistBody">
+        <tr class="wl-loading-row"><td colspan="6">Loading watchlist…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══ SECTION 2: STOCK ANALYSIS ════════════════════════════════════════ -->
+  <div class="section-divider">Stock Analysis · ML Return Prediction</div>
+
+  <!-- SEARCH CARD -->
+  <div class="search-card fade-in">
+    <div class="search-title">Analyse Stock · NSE Symbol</div>
+    <form id="stockAnalyseForm" method="POST" action="/watchlist" autocomplete="off">
+      <div class="search-row">
+        <div class="search-group" style="position:relative;">
+          <span class="search-label">NSE Symbol / Company Name</span>
+          <div class="nse-search-wrap" style="position:relative;">
+            <span class="nse-search-icon">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" stroke-width="1.5"/>
+                <path d="M21 21l-4.35-4.35" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input class="nse-input" id="nseInput" name="nsecode"
+                   placeholder="e.g. RELIANCE, TCS, INFY…"
+                   value="{{ query }}" autocomplete="off"/>
+            <span class="nse-hint">Enter</span>
+            <div class="suggestions-box" id="sugBox"></div>
+          </div>
+        </div>
+        <div class="search-group">
+          <span class="search-label">History Period</span>
+          <select class="period-select" name="period">
+            <option value="6mo">6 Months</option>
+            <option value="1y" selected>1 Year</option>
+            <option value="2y">2 Years</option>
+            <option value="3y">3 Years</option>
+          </select>
+        </div>
+        <div class="search-group" style="justify-content:flex-end;">
+          <span class="search-label">&nbsp;</span>
+          <button class="run-btn" type="submit">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+            </svg>
+            Analyse Stock
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div id="analysisAnchor" style="scroll-margin-top:70px"></div>
+  <!-- ERROR -->
+  {% if result and result.error %}
+  <div class="error-box fade-in">
+    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
+      <line x1="15" y1="9" x2="9" y2="15" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="9" y1="9" x2="15" y2="15" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <span>{{ result.error }}</span>
+  </div>
+  {% endif %}
+
+  <!-- RESULTS -->
+  {% if result and not result.error %}
+
+  <!-- STOCK HEADER -->
+  <div class="stock-header fade-in">
+    <div class="stock-identity">
+      <div class="stock-emblem">{{ result.nse_code[:3] }}</div>
+      <div>
+        <div class="stock-name-full">{{ result.name }}</div>
+        <div class="stock-meta">
+          <span class="stock-code-chip">{{ result.nse_code }} · NSE</span>
+          <span class="stock-sector">{{ result.sector }}</span>
+        </div>
+        <div class="stock-industry" style="margin-top:2px;">{{ result.industry }}</div>
+      </div>
+    </div>
+    <div class="stock-price-block">
+      <div class="stock-price">₹{{ result.cur_price }}</div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-3);margin-top:3px;">
+        Mkt Cap: <span style="color:var(--text-2);">{{ result.mkt_cap }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 KEY STAT TILES -->
+  <div class="stat-grid fade-in-d1">
+    <div class="stat-tile">
+      <div class="stat-tile-lbl">Tomorrow's Forecast</div>
+      <div class="stat-tile-val {% if result.predicted_return >= 0 %}c-green{% else %}c-red{% endif %}">
+        {{ "+" if result.predicted_return >= 0 else "" }}{{ result.predicted_return }}%
+      </div>
+      <div class="stat-tile-sub">Expected daily return</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-tile-lbl">YoY Price Return</div>
+      <div class="stat-tile-val {% if result.stock_yoy and result.stock_yoy != 'N/A' and result.stock_yoy|float >= 0 %}c-green{% else %}c-red{% endif %}">
+        {{ "+" if result.stock_yoy != "N/A" and result.stock_yoy|float >= 0 else "" }}{{ result.stock_yoy if result.stock_yoy != 'N/A' else '—' }}{% if result.stock_yoy != 'N/A' %}%{% endif %}
+      </div>
+      <div class="stat-tile-sub">vs NIFTY {{ "+" if result.nifty_yoy != "N/A" and result.nifty_yoy|float >= 0 else "" }}{{ result.nifty_yoy if result.nifty_yoy != 'N/A' else '—' }}{% if result.nifty_yoy != 'N/A' %}%{% endif %}</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-tile-lbl">Alpha (vs NIFTY)</div>
+      <div class="stat-tile-val {% if result.alpha != 'N/A' and result.alpha|float >= 0 %}c-green{% else %}c-red{% endif %}">
+        {{ "+" if result.alpha != "N/A" and result.alpha|float >= 0 else "" }}{{ result.alpha if result.alpha != 'N/A' else '—' }}{% if result.alpha != 'N/A' %}%{% endif %}
+      </div>
+      <div class="stat-tile-sub">Excess return generated</div>
+    </div>
+    <div class="stat-tile">
+      <div class="stat-tile-lbl">Beta (Volatility)</div>
+      <div class="stat-tile-val c-cyan">{{ result.beta if result.beta != 'N/A' else '—' }}</div>
+      <div class="stat-tile-sub">
+        {% if result.beta != "N/A" %}
+          {% if result.beta|float > 1.5 %}Very High Risk
+          {% elif result.beta|float > 1.0 %}High Risk
+          {% elif result.beta|float > 0.5 %}Moderate Risk
+          {% else %}Low Risk{% endif %}
+        {% else %}Data unavailable{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- PREDICTION + FUNDAMENTALS GRID -->
+  <div class="results-grid fade-in-d2">
+
+    <!-- ML PREDICTION CARD -->
+    <div class="prediction-card">
+      <div class="prediction-card-head">
+        <span>ML Prediction · Plain English</span>
+        <span style="color:var(--cyan);">Linear Regression</span>
+      </div>
+      <div class="prediction-card-body">
+        <div class="verdict-row">
+          <div class="verdict-icon" style="background:{% if result.layman.verdict_color == 'green' %}var(--green-dim){% elif result.layman.verdict_color == 'red' %}var(--red-dim){% else %}var(--gold-dim){% endif %};">
+            <svg width="18" height="18" fill="none" stroke="{% if result.layman.verdict_color == 'green' %}var(--green){% elif result.layman.verdict_color == 'red' %}var(--red){% else %}var(--gold){% endif %}" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              {% if result.layman.verdict_color == 'green' %}
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              {% elif result.layman.verdict_color == 'red' %}
+              <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+              {% else %}
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              {% endif %}
+            </svg>
+          </div>
+          <div class="verdict-text">
+            <div class="verdict-label">Model Verdict</div>
+            <div class="verdict-value v-{{ result.layman.verdict_color }}">{{ result.layman.verdict }}</div>
+          </div>
+        </div>
+        <div class="tomorrow-badge {% if result.predicted_return >= 0.5 %}pos{% elif result.predicted_return <= -0.5 %}neg{% else %}neu{% endif %}">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Tomorrow: {{ "+" if result.predicted_return >= 0 else "" }}{{ result.predicted_return }}%
+        </div>
+        <div class="layman-section">
+          <div class="layman-section-lbl">
+            <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            What to Expect
+          </div>
+          <div class="layman-text">{{ result.layman.pred_line }}</div>
+        </div>
+        <div class="layman-section">
+          <div class="layman-section-lbl">
+            <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Model Confidence
+          </div>
+          <div class="layman-text">{{ result.layman.confidence_line }}</div>
+        </div>
+        <div class="layman-section">
+          <div class="layman-section-lbl">
+            <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke-linecap="round"/><line x1="12" y1="17" x2="12.01" y2="17" stroke-linecap="round"/></svg>
+            Risk Profile
+          </div>
+          <div class="layman-text">{{ result.layman.beta_line }}</div>
+        </div>
+        <div class="layman-section" style="margin-bottom:0;">
+          <div class="layman-section-lbl">
+            <svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10" stroke-linecap="round"/><line x1="12" y1="20" x2="12" y2="4" stroke-linecap="round"/><line x1="6" y1="20" x2="6" y2="14" stroke-linecap="round"/></svg>
+            Price Position (52-Week)
+          </div>
+          <div class="layman-text">{{ result.layman.position_line }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FUNDAMENTALS CARD -->
+    <div class="fund-card">
+      <div class="fund-card-head">Key Fundamentals</div>
+      <div class="fund-grid">
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Market Cap</span>
+          <span class="fund-val">{{ result.mkt_cap }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14" stroke-linecap="round" stroke-linejoin="round"/></svg>52W High</span>
+          <span class="fund-val hi">₹{{ result.week52h if result.week52h != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14" stroke-linecap="round" stroke-linejoin="round"/></svg>52W Low</span>
+          <span class="fund-val" style="color:var(--red);">₹{{ result.week52l if result.week52l != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>P/E Ratio</span>
+          <span class="fund-val c-cyan">{{ result.pe_ratio if result.pe_ratio != 'N/A' else '—' }}{% if result.pe_ratio != 'N/A' %}x{% endif %}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>EPS</span>
+          <span class="fund-val">{{ '₹' + result.eps|string if result.eps != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>EBIT Margin</span>
+          <span class="fund-val {% if result.ebit_margin != 'N/A' and result.ebit_margin[:-1]|float >= 15 %}pos{% elif result.ebit_margin != 'N/A' and result.ebit_margin[:-1]|float < 5 %}neg{% endif %}">{{ result.ebit_margin if result.ebit_margin != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Revenue Growth (YoY)</span>
+          <span class="fund-val {% if result.rev_growth != 'N/A' and result.rev_growth[:-1]|float >= 0 %}pos{% else %}neg{% endif %}">{{ result.rev_growth if result.rev_growth != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Dividend Yield</span>
+          <span class="fund-val c-gold">{{ result.div_yield if result.div_yield != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>ROE</span>
+          <span class="fund-val {% if result.roe != 'N/A' and result.roe[:-1]|float >= 15 %}pos{% elif result.roe != 'N/A' and result.roe[:-1]|float < 5 %}neg{% endif %}">{{ result.roe if result.roe != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Debt / Equity</span>
+          <span class="fund-val {% if result.debt_equity != 'N/A' and result.debt_equity|float > 2 %}neg{% elif result.debt_equity != 'N/A' and result.debt_equity|float <= 0.5 %}pos{% endif %}">{{ result.debt_equity if result.debt_equity != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Free Cash Flow</span>
+          <span class="fund-val">{{ result.fcf if result.fcf != 'N/A' else '—' }}</span>
+        </div>
+        <div class="fund-row" style="border-bottom:none;">
+          <span class="fund-key"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>50D / 200D Avg</span>
+          <span class="fund-val" style="font-size:10px;text-align:right;line-height:1.6;">
+            {{ '₹' + result.avg50|string if result.avg50 != 'N/A' else '—' }}<br>
+            <span style="color:var(--text-3);">{{ '₹' + result.avg200|string if result.avg200 != 'N/A' else '—' }}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 52-WEEK RANGE BAR -->
+  <div class="week52-section fade-in-d2">
+    <div class="week52-head">
+      <span>52-Week Price Range</span>
+      <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-2);">
+        Current: ₹{{ result.cur_price }}
+      </span>
+    </div>
+    <div class="week52-row">
+      <span class="week52-lbl low-lbl">{{ '₹' + result.week52l|string if result.week52l != 'N/A' else '—' }}<br>52W Low</span>
+      <div class="week52-track">
+        <div class="week52-fill" style="width:{{ [result.week52_pos * 100, 2] | max }}%;">
+          <div class="week52-marker"></div>
+        </div>
+      </div>
+      <span class="week52-lbl high-lbl">{{ '₹' + result.week52h|string if result.week52h != 'N/A' else '—' }}<br>52W High</span>
+      <span class="week52-pct">{{ (result.week52_pos * 100) | round(1) }}%</span>
+    </div>
+    <div class="ma-row">
+      {% if result.avg50 != 'N/A' %}
+        {% if result.cur_price|float >= result.avg50|float %}
+          <span class="ma-chip above">Above 50D MA (₹{{ result.avg50 }})</span>
+        {% else %}
+          <span class="ma-chip below">Below 50D MA (₹{{ result.avg50 }})</span>
+        {% endif %}
+      {% endif %}
+      {% if result.avg200 != 'N/A' %}
+        {% if result.cur_price|float >= result.avg200|float %}
+          <span class="ma-chip above">Above 200D MA (₹{{ result.avg200 }})</span>
+        {% else %}
+          <span class="ma-chip below">Below 200D MA (₹{{ result.avg200 }})</span>
+        {% endif %}
+      {% endif %}
+      {% if result.alpha != 'N/A' %}
+        {% if result.alpha|float >= 0 %}
+          <span class="ma-chip above">Positive Alpha vs NIFTY</span>
+        {% else %}
+          <span class="ma-chip below">Negative Alpha vs NIFTY</span>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- CHART -->
+  <div class="chart-panel fade-in-d3">
+    <div class="chart-panel-head">
+      <span class="chart-panel-title">Actual Returns vs Model Prediction · {{ result.nse_code }}</span>
+      <div class="chart-legend">
+        <div class="cl-item"><div class="cl-line" style="background:#00E5A0;box-shadow:0 0 4px #00E5A0"></div>Actual Daily Return</div>
+        <div class="cl-item"><div class="cl-line" style="background:#F0B90B;"></div>Model Fit</div>
+      </div>
+    </div>
+    {% if chart_json %}
+    <div id="returnChart"></div>
+    <script>
+      var fig={{ chart_json | safe }};
+      Plotly.newPlot('returnChart',fig.data,fig.layout,{responsive:true,displaylogo:false,modeBarButtonsToRemove:['toImage','sendDataToCloud']});
+    </script>
+    {% endif %}
+  </div>
+
+  <!-- TECHNICAL ACCORDION -->
+  <div class="tech-accordion fade-in-d4">
+    <div class="tech-accordion-head" id="techHead" onclick="toggleTech()">
+      <span>Technical Model Details</span>
+      <svg class="tech-chevron" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <polyline points="6 9 12 15 18 9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="tech-body" id="techBody">
+      <div class="tech-meta-grid">
+        <div class="tech-tile"><div class="tech-tile-lbl">R² Score</div><div class="tech-tile-val c-cyan">{{ result.r2 }}</div></div>
+        <div class="tech-tile"><div class="tech-tile-lbl">Mean Squared Error</div><div class="tech-tile-val c-gold">{{ result.mse }}</div></div>
+        <div class="tech-tile"><div class="tech-tile-lbl">Predicted Return</div><div class="tech-tile-val {% if result.predicted_return >= 0 %}c-green{% else %}c-red{% endif %}">{{ result.predicted_return }}%</div></div>
+        <div class="tech-tile"><div class="tech-tile-lbl">Features Used</div><div class="tech-tile-val c-text" style="font-size:11px;line-height:1.6;">Lag 1/2/3/5<br>MA5, MA10</div></div>
+        <div class="tech-tile"><div class="tech-tile-lbl">Train / Test Split</div><div class="tech-tile-val c-text">80 / 20</div></div>
+        <div class="tech-tile"><div class="tech-tile-lbl">Algorithm</div><div class="tech-tile-val c-text" style="font-size:11px;">Linear<br>Regression</div></div>
+      </div>
+      <div class="tech-note">
+        <strong style="color:var(--gold);">How it works:</strong> The model uses the past 5 days of returns (Lag_1 to Lag_5) and 5/10-day moving averages as input features. It trains a Linear Regression on 80% of historical data, validates on the remaining 20%, and uses the most recent data point to predict the next day's expected return. MSE measures average prediction error. R² tells you how well the model fits historical patterns — higher is better.<br><br>
+        <strong style="color:var(--red);">Disclaimer:</strong> This is a statistical model. Markets are influenced by many factors not captured here. Do not use this as sole financial advice.
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  {% if not result %}
+  <!-- EMPTY STATE -->
+  <div class="empty-state fade-in-d1">
+    <div class="empty-icon">
+      <svg width="22" height="22" fill="none" stroke="var(--cyan)" viewBox="0 0 24 24" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="empty-title">Search for any NSE-listed Stock</div>
+    <div class="empty-sub">
+      Enter the NSE code above and click Analyse Stock.<br>
+      Get ML prediction, fundamentals, 52W range, Alpha, Beta and more.<br><br>
+      <strong style="color:var(--text-2);">Quick picks:</strong>
+    </div>
+    <div class="stock-chips" id="quickPicks">
+      <span class="stock-chip" onclick="quickFill('RELIANCE')">RELIANCE</span>
+      <span class="stock-chip" onclick="quickFill('TCS')">TCS</span>
+      <span class="stock-chip" onclick="quickFill('INFY')">INFY</span>
+      <span class="stock-chip" onclick="quickFill('HDFCBANK')">HDFCBANK</span>
+      <span class="stock-chip" onclick="quickFill('ICICIBANK')">ICICIBANK</span>
+      <span class="stock-chip" onclick="quickFill('SBIN')">SBIN</span>
+      <span class="stock-chip" onclick="quickFill('WIPRO')">WIPRO</span>
+      <span class="stock-chip" onclick="quickFill('BAJFINANCE')">BAJFINANCE</span>
+      <span class="stock-chip" onclick="quickFill('ZOMATO')">ZOMATO</span>
+      <span class="stock-chip" onclick="quickFill('IRCTC')">IRCTC</span>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+</div><!-- /main-content -->
+
+<script>
+    function analyseStock(sym) {
+  document.getElementById('nseInput').value = sym;
+  document.getElementById('stockAnalyseForm').submit();
+}
+const NSE_STOCKS = {{ stocks | tojson }};
+
+// ── IST CLOCK ──────────────────────────────────────────────────────────────
+function getIST(){const now=new Date();return new Date(now.getTime()+(now.getTimezoneOffset()*60000)+(5.5*3600000));}
+function updateClock(){const ist=getIST();const h=String(ist.getHours()).padStart(2,'0'),m=String(ist.getMinutes()).padStart(2,'0'),s=String(ist.getSeconds()).padStart(2,'0');document.getElementById('clockEl').textContent=`${h}:${m}:${s} IST`;}
+setInterval(updateClock,1000);updateClock();
+
+// ── MARKET STATUS ──────────────────────────────────────────────────────────
+function updateMarketStatus(){
+  const ist=getIST();const day=ist.getDay();const h=ist.getHours(),m=ist.getMinutes();
+  const totalMins=h*60+m;const OPEN=9*60+15,CLOSE=15*60+30;const isWeekday=day>=1&&day<=5;
+  const badge=document.getElementById('liveBadge'),dot=document.getElementById('liveDot'),txt=document.getElementById('mktTxt'),timer=document.getElementById('mktTimer');
+  if(isWeekday&&totalMins>=OPEN&&totalMins<CLOSE){
+    badge.className='live-badge open';dot.className='live-dot blink';txt.textContent='LIVE';timer.style.display='none';
+  } else {
+    badge.className='live-badge closed';dot.className='live-dot off';txt.textContent='CLOSED';timer.style.display='block';
+    let next=new Date(ist);next.setSeconds(0,0);
+    if(totalMins>=CLOSE||!isWeekday){next.setDate(next.getDate()+1);while(next.getDay()===0||next.getDay()===6)next.setDate(next.getDate()+1);}
+    next.setHours(9,15,0,0);const diff=next-ist;
+    const dh=Math.floor(diff/3600000),dm=Math.floor((diff%3600000)/60000),ds=Math.floor((diff%60000)/1000);
+    timer.textContent=`Opens in ${dh}h ${String(dm).padStart(2,'0')}m ${String(ds).padStart(2,'0')}s`;
+  }
+}
+setInterval(updateMarketStatus,1000);updateMarketStatus();
+
+// ── WATCHLIST ──────────────────────────────────────────────────────────────
+const DEFAULT_WL=[
+  {sym:'RELIANCE',name:'Reliance Industries'},
+  {sym:'HDFCBANK', name:'HDFC Bank Ltd.'},
+  {sym:'INFY',     name:'Infosys Ltd.'},
+  {sym:'TCS',      name:'Tata Consultancy Services'},
+  {sym:'ICICIBANK',name:'ICICI Bank Ltd.'},
+  {sym:'WIPRO',    name:'Wipro Ltd.'},
+  {sym:'AXISBANK', name:'Axis Bank Ltd.'},
+];
+const WL_KEY='intellinvest_watchlist';
+function getWL(){const s=localStorage.getItem(WL_KEY);return s?JSON.parse(s):DEFAULT_WL;}
+function saveWL(l){localStorage.setItem(WL_KEY,JSON.stringify(l));}
+
+async function loadWatchlist(){
+  const wl=getWL();const tbody=document.getElementById('watchlistBody');const status=document.getElementById('wlStatus');
+  tbody.innerHTML='<tr class="wl-loading-row"><td colspan="6">Loading…</td></tr>';status.textContent='Fetching…';
+  if(!wl.length){tbody.innerHTML='<tr class="wl-loading-row"><td colspan="6">Watchlist empty. Click + Add Stock.</td></tr>';status.textContent='Empty';return;}
+  try{
+    const syms=wl.map(w=>w.sym).join(',');
+    const res=await fetch('/api/watchlist?symbols='+syms);const data=await res.json();
+    tbody.innerHTML='';
+    data.forEach(s=>{
+      const pos=s.change>0;const chgFmt=(pos?'+':'')+s.change+'%';
+      tbody.innerHTML+=`<tr>
+        <td><div class="sym-name">${s.sym}</div><div class="sym-full">${s.name}</div></td>
+        <td>₹${s.price}</td>
+        <td><span class="${pos?'chg-pos':'chg-neg'}">${chgFmt}</span></td>
+        <td style="color:var(--text-3)">${s.week52h} / ${s.week52l}</td>
+        <td>${s.mkt_cap}</td>
+        <td style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
+          <span class="chip ${s.sig_cls}">${s.signal}</span>
+          <button class="analyse-link" onclick="analyseStock('${s.sym}')">Analyse</button>
+          <button class="remove-btn" onclick="removeStock('${s.sym}')" title="Remove">&#x2715;</button>
+        </td></tr>`;
+    });
+    status.textContent='NSE · '+new Date().toLocaleTimeString('en-IN',{hour12:false});
+  } catch(e){
+    tbody.innerHTML='<tr class="wl-loading-row"><td colspan="6" style="color:var(--red)">Error loading data. Check connection.</td></tr>';
+    status.textContent='Error';
+  }
+}
+
+function removeStock(sym){let wl=getWL().filter(w=>w.sym!==sym);saveWL(wl);loadWatchlist();}
+function addStock(sym,name){let wl=getWL();if(!wl.find(w=>w.sym===sym)){wl.push({sym,name});saveWL(wl);loadWatchlist();}closeModal();}
+
+// ── MODAL ──────────────────────────────────────────────────────────────────
+function openModal(){document.getElementById('addStockModal').classList.add('open');document.getElementById('stockSearch').value='';renderModalList('');setTimeout(()=>document.getElementById('stockSearch').focus(),50);}
+function closeModal(){document.getElementById('addStockModal').classList.remove('open');}
+function renderModalList(q){
+  const wl=getWL();const container=document.getElementById('stockResults');
+  const entries=Object.entries(NSE_STOCKS);
+  const filtered=q.length<1?entries.slice(0,30):entries.filter(([n,s])=>n.toLowerCase().includes(q.toLowerCase())||s.toLowerCase().includes(q.toLowerCase())).slice(0,50);
+  if(!filtered.length){container.innerHTML='<div class="modal-empty">No results for "'+q+'"</div>';return;}
+  container.innerHTML=filtered.map(([name,sym])=>{
+    const exists=!!wl.find(w=>w.sym===sym);
+    return `<div class="modal-item" onclick="${exists?'':'addStock(\''+sym+'\',\''+name+'\')'}">
+      <div><span class="modal-item-sym">${sym}</span>&nbsp;&nbsp;<span class="modal-item-name">${name}</span></div>
+      ${exists?'<span class="modal-exists-tag">In List</span>':'<span class="modal-add-tag">+ Add</span>'}
+    </div>`;
+  }).join('');
+}
+function filterStocks(q){renderModalList(q);}
+document.getElementById('addStockModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ── SUGGESTIONS ────────────────────────────────────────────────────────────
+const input=document.getElementById('nseInput');const sugBox=document.getElementById('sugBox');
+input.addEventListener('input',function(){
+  const q=this.value.trim().toUpperCase();sugBox.innerHTML='';
+  if(q.length<1){sugBox.classList.remove('show');return;}
+  const matches=[];
+  for(const [code,name] of Object.entries(NSE_STOCKS)){
+    if(code.startsWith(q)||name.toUpperCase().includes(q)){matches.push({code,name});if(matches.length>=8)break;}
+  }
+  if(!matches.length){sugBox.classList.remove('show');return;}
+  matches.forEach(m=>{
+    const div=document.createElement('div');div.className='suggestion-item';
+    div.innerHTML=`<span class="sug-name">${m.name}</span><span class="sug-code">${m.code}</span>`;
+    div.addEventListener('mousedown',function(e){e.preventDefault();input.value=m.code;sugBox.classList.remove('show');});
+    sugBox.appendChild(div);
+  });
+  sugBox.classList.add('show');
+});
+input.addEventListener('blur',function(){setTimeout(()=>sugBox.classList.remove('show'),150);});
+
+// ── QUICK FILL ─────────────────────────────────────────────────────────────
+function quickFill(code){document.getElementById('nseInput').value=code;document.getElementById('nseInput').focus();}
+
+// ── TECH ACCORDION ─────────────────────────────────────────────────────────
+function toggleTech(){document.getElementById('techHead').classList.toggle('open');document.getElementById('techBody').classList.toggle('open');}
+
+// ── AUTO LOAD ──────────────────────────────────────────────────────────────
+window.addEventListener('load',function(){loadWatchlist();setInterval(loadWatchlist,60000);});
+{% if result %}
+document.addEventListener('DOMContentLoaded', function(){
+  var el = document.getElementById('analysisAnchor');
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+});
+{% endif %}
+</script>
+</body>
+</html>
