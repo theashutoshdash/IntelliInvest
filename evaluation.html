@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Intellinvest · Model Evaluation</title>
+
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════
+   ROOT TOKENS
+═══════════════════════════════════════════ */
+:root {
+  --navy-900:   #060D18;
+  --navy-800:   #0A1628;
+  --navy-700:   #0F1F38;
+  --navy-600:   #152843;
+  --navy-500:   #1D3554;
+  --border:     rgba(0, 198, 255, 0.10);
+  --border-hi:  rgba(0, 198, 255, 0.25);
+  --cyan:       #00C6FF;
+  --cyan-dim:   #0077AA;
+  --cyan-glow:  rgba(0,198,255,0.12);
+  --green:      #00E5A0;
+  --green-dim:  rgba(0,229,160,0.12);
+  --red:        #FF4560;
+  --red-dim:    rgba(255,69,96,0.12);
+  --gold:       #F0B90B;
+  --gold-dim:   rgba(240,185,11,0.10);
+  --amber:      #FF9F43;
+  --text-1:     #E4EEF8;
+  --text-2:     #7A9BBD;
+  --text-3:     #3A5878;
+  --font-mono:  'IBM Plex Mono', monospace;
+  --font-sans:  'IBM Plex Sans', sans-serif;
+  --sidebar-w:  260px;
+  --topbar-h:   52px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--navy-900);
+  font-family: var(--font-sans);
+  color: var(--text-1);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  background-size: 128px; opacity: 0.35;
+}
+
+/* ═══════════════════════════════════════════
+   TOP TICKER BAR
+═══════════════════════════════════════════ */
+.ticker-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: var(--topbar-h);
+  background: var(--navy-900);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; overflow: hidden;
+}
+.ticker-brand {
+  flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+  padding: 0 18px; border-right: 1px solid var(--border);
+  height: 100%; background: var(--navy-800); min-width: var(--sidebar-w);
+}
+.brand-logo-wrap {
+  position: relative; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.brand-logo-wrap::before {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  border: 1.5px solid rgba(0,198,255,0.35);
+  animation: logoRing 4s linear infinite;
+}
+@keyframes logoRing { to { transform: rotate(360deg); } }
+.brand-logo-img {
+  width: 34px; height: 34px; border-radius: 50%;
+  object-fit: contain; display: block;
+  background: linear-gradient(135deg, var(--navy-600), var(--navy-500));
+  border: 1.5px solid var(--border-hi);
+  box-shadow: 0 0 14px rgba(0,198,255,0.25); padding: 4px;
+  filter: brightness(1.3) drop-shadow(0 0 5px rgba(0,198,255,0.4));
+}
+.brand-logo-fallback {
+  display: none; width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--cyan), #0050CC);
+  align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+  color: #fff; box-shadow: 0 0 14px rgba(0,198,255,0.3);
+}
+.brand-text-wrap { display: flex; flex-direction: column; gap: 1px; }
+.brand-name {
+  font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+  letter-spacing: 0.02em; color: var(--text-1); line-height: 1;
+}
+.brand-name span { color: var(--cyan); }
+.brand-sub {
+  font-family: var(--font-mono); font-size: 8px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3);
+}
+.ticker-scroll-wrap {
+  flex: 1; overflow: hidden; height: 100%;
+  display: flex; align-items: center; position: relative;
+}
+.ticker-scroll-wrap::before,
+.ticker-scroll-wrap::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 40px; z-index: 2;
+}
+.ticker-scroll-wrap::before { left: 0;  background: linear-gradient(90deg,  var(--navy-900), transparent); }
+.ticker-scroll-wrap::after  { right: 0; background: linear-gradient(-90deg, var(--navy-900), transparent); }
+.ticker-track {
+  display: inline-flex; align-items: center;
+  white-space: nowrap; animation: tickerScroll 55s linear infinite;
+}
+.ticker-track:hover { animation-play-state: paused; }
+@keyframes tickerScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.t-item {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 20px; border-right: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 11px;
+  cursor: default; transition: background 0.2s;
+  font-variant-numeric: tabular-nums;
+}
+.t-item:hover { background: var(--cyan-glow); }
+.t-sym { color: var(--text-2); font-weight: 500; letter-spacing: 0.06em; }
+.t-val { color: var(--text-1); font-weight: 600; }
+.t-chg.up { color: var(--green); } .t-chg.dn { color: var(--red); }
+.ticker-right {
+  flex-shrink: 0; display: flex; align-items: center; gap: 14px;
+  padding: 0 18px; border-left: 1px solid var(--border); height: 100%;
+}
+.live-badge {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--green); letter-spacing: 0.1em;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  animation: blink 1.8s ease-in-out infinite; box-shadow: 0 0 5px var(--green);
+}
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
+.clock {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-3); letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════ */
+.sidebar {
+  position: fixed; left: 0; top: var(--topbar-h); bottom: 0;
+  width: var(--sidebar-w); background: var(--navy-800);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 100; overflow-y: auto;
+}
+.sidebar-logo-section {
+  padding: 28px 20px 22px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  background: linear-gradient(180deg, rgba(0,198,255,0.03), transparent);
+  position: relative; overflow: hidden;
+}
+.sidebar-logo-section::before {
+  content: '';
+  position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+  width: 180px; height: 180px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,198,255,0.07), transparent 70%);
+  pointer-events: none;
+}
+.sidebar-logo-ring-wrap {
+  position: relative; width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+}
+.sidebar-logo-ring-wrap::before {
+  content: ''; position: absolute; inset: -8px; border-radius: 50%;
+  border: 1.5px solid rgba(0,198,255,0.20);
+  animation: ringPulse 3s ease-in-out infinite;
+}
+.sidebar-logo-ring-wrap::after {
+  content: ''; position: absolute; inset: -16px; border-radius: 50%;
+  border: 1px solid rgba(0,198,255,0.08);
+  animation: ringPulse 3s ease-in-out infinite 0.6s;
+}
+@keyframes ringPulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.3; transform:scale(1.05); }
+}
+.sidebar-logo-img {
+  width: 76px; height: 76px; border-radius: 50%;
+  object-fit: contain; display: block;
+  border: 2px solid var(--border-hi);
+  box-shadow: 0 0 24px rgba(0,198,255,0.18), 0 0 48px rgba(0,198,255,0.06), inset 0 0 12px rgba(0,198,255,0.05);
+  background: linear-gradient(135deg, var(--navy-600), var(--navy-500));
+  padding: 10px;
+  filter: brightness(1.4) contrast(1.05) drop-shadow(0 0 8px rgba(0,198,255,0.35));
+  animation: logoFloat 4s ease-in-out infinite;
+}
+.sidebar-logo-fallback {
+  display: none; width: 76px; height: 76px; border-radius: 50%;
+  background: linear-gradient(135deg, #0F1F38, #152843);
+  border: 2px solid var(--border-hi); box-shadow: 0 0 24px rgba(0,198,255,0.18);
+  align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 700; font-size: 22px; color: var(--cyan);
+  animation: logoFloat 4s ease-in-out infinite;
+}
+@keyframes logoFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.sidebar-brand-name {
+  font-family: var(--font-sans); font-size: 17px; font-weight: 700;
+  color: var(--text-1); margin-bottom: 2px; text-align: center;
+}
+.sidebar-brand-name span { color: var(--cyan); }
+.sidebar-brand-tag {
+  font-family: var(--font-mono); font-size: 8px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-3); text-align: center;
+}
+.sidebar-profile {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.avatar-ring {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--cyan), #0050AA);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: #fff;
+  box-shadow: 0 0 14px rgba(0,198,255,0.2); position: relative;
+}
+.avatar-ring::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--cyan); border-right-color: var(--cyan);
+  animation: spinRing 4s linear infinite;
+}
+@keyframes spinRing { to { transform: rotate(360deg); } }
+.profile-name { font-size: 13px; font-weight: 600; color: var(--text-1); line-height: 1; margin-bottom: 2px; }
+.profile-role {
+  font-family: var(--font-mono); font-size: 8px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan);
+}
+.sidebar-section-label {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-3); padding: 16px 20px 7px;
+}
+.nav-item-custom {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px; border-left: 3px solid transparent;
+  text-decoration: none; color: var(--text-2); font-size: 13px; font-weight: 500;
+  transition: all 0.2s;
+}
+.nav-item-custom:hover, .nav-item-custom.active {
+  background: var(--cyan-glow); border-left-color: var(--cyan); color: var(--text-1);
+}
+.nav-icon { width: 15px; height: 15px; opacity: 0.55; flex-shrink: 0; }
+.nav-item-custom:hover .nav-icon, .nav-item-custom.active .nav-icon { opacity: 1; }
+.nav-badge {
+  margin-left: auto; font-family: var(--font-mono); font-size: 8px;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--cyan-glow); color: var(--cyan); border: 1px solid var(--border-hi);
+}
+.sidebar-footer {
+  margin-top: auto; padding: 14px 20px; border-top: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-3); letter-spacing: 0.08em;
+}
+
+/* ═══════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════ */
+.main-content {
+  margin-left: var(--sidebar-w); margin-top: var(--topbar-h);
+  padding: 22px 24px; min-height: calc(100vh - var(--topbar-h));
+}
+
+/* PAGE HEADER */
+.page-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.page-title {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px;
+}
+.page-heading {
+  font-family: var(--font-sans); font-size: 21px; font-weight: 600;
+  color: var(--text-1); line-height: 1;
+}
+.page-sub {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-3); margin-top: 5px; letter-spacing: 0.04em;
+}
+
+/* ── PANEL ── */
+.panel {
+  background: var(--navy-700); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; margin-bottom: 14px;
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 16px; border-bottom: 1px solid var(--border);
+  background: var(--navy-800);
+}
+.panel-title {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text-2); font-weight: 600;
+}
+.panel-tag {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.08em; color: var(--text-3);
+}
+
+/* model badge beside panel title */
+.model-badge {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 2px 9px; border-radius: 3px; margin-left: 8px;
+}
+.model-badge.dt  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,229,160,0.25); }
+.model-badge.lr  { background: var(--gold-dim);  color: var(--gold);  border: 1px solid rgba(240,185,11,0.25); }
+.model-badge.km  { background: var(--cyan-glow); color: var(--cyan);  border: 1px solid var(--border-hi); }
+
+/* ── KPI ROW ── */
+.kpi-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+.kpi-cell {
+  padding: 20px 22px; border-right: 1px solid var(--border);
+  position: relative;
+}
+.kpi-cell:last-child { border-right: none; }
+.kpi-cell::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-radius: 0;
+}
+.kpi-cell.green::after { background: var(--green); }
+.kpi-cell.gold::after  { background: var(--gold); }
+.kpi-cell.cyan::after  { background: var(--cyan); }
+.kpi-label {
+  font-family: var(--font-mono); font-size: 8px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 7px;
+}
+.kpi-value {
+  font-family: var(--font-mono); font-size: 32px; font-weight: 700;
+  line-height: 1; margin-bottom: 4px;
+}
+.kpi-sub {
+  font-family: var(--font-mono); font-size: 9px; color: var(--text-3);
+}
+
+/* ── TWO-COLUMN GRID ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.two-col-inner { padding: 20px; border-right: 1px solid var(--border); }
+.two-col-inner:last-child { border-right: none; }
+
+/* ── SECTION LABEL (inside panel) ── */
+.inner-label {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 14px;
+}
+
+/* ── PER-CLASS TABLE ── */
+.class-table { width: 100%; border-collapse: collapse; }
+.class-table th {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-3); padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left; font-weight: 500;
+}
+.class-table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(21,40,67,0.6);
+  font-variant-numeric: tabular-nums;
+}
+.class-table tr:last-child td { border-bottom: none; }
+.class-table tr:hover td { background: var(--cyan-glow); }
+.class-name {
+  font-family: var(--font-mono); font-size: 11px;
+  font-weight: 600; color: var(--text-1);
+}
+
+/* progress track */
+.prog-wrap { display: flex; align-items: center; gap: 8px; }
+.prog-track {
+  flex: 1; height: 5px; border-radius: 3px;
+  background: rgba(255,255,255,0.05); overflow: hidden;
+}
+.prog-fill { height: 100%; border-radius: 3px; transition: width 0.7s cubic-bezier(0.22,1,0.36,1); }
+.prog-val {
+  width: 38px; text-align: right;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+}
+
+.f1-val {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--cyan);
+}
+.sup-val {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-3);
+}
+
+/* ── CONFUSION MATRIX ── */
+#cmChart { width: 100%; height: 280px; }
+
+/* ── REGRESSION STATS ── */
+.reg-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.reg-stat {
+  padding: 24px 22px; border-right: 1px solid var(--border);
+}
+.reg-stat:last-child { border-right: none; }
+.reg-stat-val {
+  font-family: var(--font-mono); font-size: 36px; font-weight: 700;
+  color: var(--gold); line-height: 1; margin-bottom: 5px;
+}
+.reg-stat-label {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 12px;
+}
+.reg-stat-desc {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--text-2); line-height: 1.8; letter-spacing: 0.03em;
+}
+
+/* feature bar — inside regression panel */
+.feat-strip {
+  padding: 16px 20px; border-top: 1px solid var(--border);
+  background: var(--navy-800);
+}
+.feat-strip-label {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 10px;
+}
+.feat-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.feat-chip {
+  font-family: var(--font-mono); font-size: 9px;
+  padding: 3px 9px; border-radius: 3px;
+  background: var(--navy-600); border: 1px solid var(--border);
+  color: var(--text-2); letter-spacing: 0.04em;
+}
+.feat-note {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--text-3); margin-top: 10px; line-height: 1.8;
+}
+.feat-note a { color: var(--cyan); text-decoration: none; opacity: 0.8; }
+.feat-note a:hover { opacity: 1; }
+
+/* ── CLUSTER CARDS ── */
+.cluster-body { padding: 20px; }
+.cluster-desc {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--text-2); line-height: 1.9; margin-bottom: 18px;
+  letter-spacing: 0.03em;
+}
+.cluster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.cluster-card {
+  padding: 16px 18px; border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--navy-800);
+  border-top: 2px solid transparent;
+  transition: border-top-color 0.2s;
+}
+.cluster-card:hover { border-top-color: var(--cyan); }
+.cluster-id {
+  font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 6px;
+}
+.cluster-name {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  line-height: 1.3; margin-bottom: 6px;
+}
+.cluster-range {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--text-3); letter-spacing: 0.04em;
+}
+.cluster-note {
+  font-family: var(--font-mono); font-size: 9px;
+  color: var(--text-3); letter-spacing: 0.04em; line-height: 1.8;
+}
+
+/* ── FEATURE LIST ── */
+.feature-list { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.feature-pill {
+  font-family: var(--font-mono); font-size: 9px;
+  padding: 4px 10px; border-radius: 3px;
+  background: var(--navy-600); border: 1px solid var(--border);
+  color: var(--text-2); display: flex; align-items: center; gap: 5px;
+}
+.feature-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+/* fade */
+.fade-up {
+  opacity: 0; transform: translateY(12px);
+  animation: fadeUp 0.5s ease forwards;
+}
+.fade-up:nth-child(1){ animation-delay:0.05s; }
+.fade-up:nth-child(2){ animation-delay:0.12s; }
+.fade-up:nth-child(3){ animation-delay:0.19s; }
+@keyframes fadeUp { to { opacity:1; transform:none; } }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--navy-900); }
+::-webkit-scrollbar-thumb { background: var(--navy-500); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ╔══════════════════════════════════════╗
+     ║  TOP TICKER BAR                      ║
+     ╚══════════════════════════════════════╝ -->
+<div class="ticker-bar">
+  <div class="ticker-brand">
+    <div class="brand-logo-wrap">
+      <img src="/static/logo.png" class="brand-logo-img" alt="Intellinvest"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <div class="brand-logo-fallback">II</div>
+    </div>
+    <div class="brand-text-wrap">
+      <div class="brand-name">Intelli<span>invest</span></div>
+      <div class="brand-sub">Portfolio Intelligence · v3.2</div>
+    </div>
+  </div>
+
+  <div class="ticker-scroll-wrap">
+    <div class="ticker-track">
+      <div class="t-item"><span class="t-sym">NIFTY 50</span><span class="t-val">24,261</span><span class="t-chg dn">▼ 2.28%</span></div>
+      <div class="t-item"><span class="t-sym">SENSEX</span><span class="t-val">79,943</span><span class="t-chg dn">▼ 1.90%</span></div>
+      <div class="t-item"><span class="t-sym">XAU/INR</span><span class="t-val">₹1,56,490</span><span class="t-chg up">▲ 16.01%</span></div>
+      <div class="t-item"><span class="t-sym">USD/INR</span><span class="t-val">91.90</span><span class="t-chg up">▲ 5.51%</span></div>
+      <div class="t-item"><span class="t-sym">RELIANCE</span><span class="t-val">₹2,847</span><span class="t-chg up">▲ 1.24%</span></div>
+      <div class="t-item"><span class="t-sym">HDFCBANK</span><span class="t-val">₹1,682</span><span class="t-chg dn">▼ 0.41%</span></div>
+      <div class="t-item"><span class="t-sym">INFY</span><span class="t-val">₹1,534</span><span class="t-chg up">▲ 2.05%</span></div>
+      <div class="t-item"><span class="t-sym">TCS</span><span class="t-val">₹3,920</span><span class="t-chg dn">▼ 0.72%</span></div>
+      <div class="t-item"><span class="t-sym">WIPRO</span><span class="t-val">₹452</span><span class="t-chg up">▲ 0.88%</span></div>
+      <div class="t-item"><span class="t-sym">ICICIBANK</span><span class="t-val">₹1,148</span><span class="t-chg up">▲ 1.52%</span></div>
+      <div class="t-item"><span class="t-sym">NIFTY 50</span><span class="t-val">24,261</span><span class="t-chg dn">▼ 2.28%</span></div>
+      <div class="t-item"><span class="t-sym">SENSEX</span><span class="t-val">79,943</span><span class="t-chg dn">▼ 1.90%</span></div>
+      <div class="t-item"><span class="t-sym">XAU/INR</span><span class="t-val">₹1,56,490</span><span class="t-chg up">▲ 16.01%</span></div>
+      <div class="t-item"><span class="t-sym">USD/INR</span><span class="t-val">91.90</span><span class="t-chg up">▲ 5.51%</span></div>
+      <div class="t-item"><span class="t-sym">RELIANCE</span><span class="t-val">₹2,847</span><span class="t-chg up">▲ 1.24%</span></div>
+      <div class="t-item"><span class="t-sym">HDFCBANK</span><span class="t-val">₹1,682</span><span class="t-chg dn">▼ 0.41%</span></div>
+      <div class="t-item"><span class="t-sym">INFY</span><span class="t-val">₹1,534</span><span class="t-chg up">▲ 2.05%</span></div>
+      <div class="t-item"><span class="t-sym">TCS</span><span class="t-val">₹3,920</span><span class="t-chg dn">▼ 0.72%</span></div>
+      <div class="t-item"><span class="t-sym">WIPRO</span><span class="t-val">₹452</span><span class="t-chg up">▲ 0.88%</span></div>
+      <div class="t-item"><span class="t-sym">ICICIBANK</span><span class="t-val">₹1,148</span><span class="t-chg up">▲ 1.52%</span></div>
+    </div>
+  </div>
+
+  <div class="ticker-right">
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    <div class="clock" id="clockEl">—</div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════╗
+     ║  SIDEBAR                             ║
+     ╚══════════════════════════════════════╝ -->
+<div class="sidebar">
+  <div class="sidebar-logo-section">
+    <div class="sidebar-logo-ring-wrap">
+      <img src="/static/logo.png" class="sidebar-logo-img" alt="Intellinvest Logo"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+      <div class="sidebar-logo-fallback">II</div>
+    </div>
+    <div class="sidebar-brand-name">Intelli<span>invest</span></div>
+    <div class="sidebar-brand-tag">Portfolio Intelligence Platform</div>
+  </div>
+
+  <div class="sidebar-profile">
+    <div class="avatar-ring">A</div>
+    <div>
+      <div class="profile-name">Ashutosh</div>
+      <div class="profile-role">Portfolio Analyst · Admin</div>
+    </div>
+  </div>
+
+  <div class="sidebar-section-label">Navigation</div>
+
+  <a href="/dashboard" class="nav-item-custom">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="1.5"/>
+      <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5"/>
+      <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.5"/>
+    </svg>
+    Dashboard
+  </a>
+
+  <a href="/return-predict" class="nav-item-custom">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Return Prediction
+  </a>
+
+  <a href="/portfolio" class="nav-item-custom">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
+      <polyline points="12 6 12 12 16 14" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Portfolio
+  </a>
+
+  <a href="/evaluation" class="nav-item-custom active">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path d="M9 11l3 3L22 4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Evaluation
+    <span class="nav-badge">ML</span>
+  </a>
+
+  <a href="#" class="nav-item-custom">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Reports
+  </a>
+
+  <a href="/logout" class="nav-item-custom" style="margin-top:auto;">
+    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="16 17 21 12 16 7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="21" y1="12" x2="9" y2="12" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    Logout
+  </a>
+
+  <div class="sidebar-footer">
+    Intellinvest v3.2.1<br>
+    NSE · BSE · MCX · RBI
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════╗
+     ║  MAIN CONTENT                        ║
+     ╚══════════════════════════════════════╝ -->
+<div class="main-content">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">ML Diagnostics</div>
+      <div class="page-heading">Model Evaluation</div>
+      <div class="page-sub">
+        Decision Tree · Linear Regression · K-Means &nbsp;·&nbsp; Modules 1 / 3 / 4
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:7px 16px;border-radius:4px;background:transparent;border:1px solid var(--border-hi);color:var(--text-2);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--text-2)'">
+        Export Report
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MODULE 1 — CLASSIFICATION
+  ══════════════════════════════════════ -->
+  <div class="panel fade-up">
+    <div class="panel-head">
+      <div style="display:flex;align-items:center;">
+        <span class="panel-title">Module 1 · Investor Risk Classifier</span>
+        <span class="model-badge dt">Decision Tree</span>
+      </div>
+      <span class="panel-tag">CLASSIFICATION · 3 CLASSES</span>
+    </div>
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+      <div class="kpi-cell green">
+        <div class="kpi-label">Accuracy</div>
+        <div class="kpi-value" style="color:var(--green);">{{ metrics.accuracy }}%</div>
+        <div class="kpi-sub">Overall correct predictions</div>
+      </div>
+      <div class="kpi-cell gold">
+        <div class="kpi-label">Weighted Precision</div>
+        <div class="kpi-value" style="color:var(--gold);">{{ metrics.precision }}%</div>
+        <div class="kpi-sub">Avg precision · class-weighted</div>
+      </div>
+      <div class="kpi-cell cyan">
+        <div class="kpi-label">Weighted Recall</div>
+        <div class="kpi-value" style="color:var(--cyan);">{{ metrics.recall }}%</div>
+        <div class="kpi-sub">Avg recall · class-weighted</div>
+      </div>
+    </div>
+
+    <!-- PER-CLASS + CONFUSION MATRIX -->
+    <div class="two-col">
+
+      <!-- Per-Class Breakdown -->
+      <div class="two-col-inner">
+        <div class="inner-label">Per-Class Breakdown</div>
+        <table class="class-table">
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Precision</th>
+              <th>Recall</th>
+              <th>F1</th>
+              <th>Support</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in metrics.classes %}
+            <tr>
+              <td><span class="class-name">{{ c.name }}</span></td>
+              <td>
+                <div class="prog-wrap">
+                  <div class="prog-track">
+                    <div class="prog-fill" style="width:{{ c.precision }}%; background:var(--green);"></div>
+                  </div>
+                  <span class="prog-val" style="color:var(--green);">{{ c.precision }}%</span>
+                </div>
+              </td>
+              <td>
+                <div class="prog-wrap">
+                  <div class="prog-track">
+                    <div class="prog-fill" style="width:{{ c.recall }}%; background:var(--gold);"></div>
+                  </div>
+                  <span class="prog-val" style="color:var(--gold);">{{ c.recall }}%</span>
+                </div>
+              </td>
+              <td><span class="f1-val">{{ c.f1 }}%</span></td>
+              <td><span class="sup-val">{{ c.support }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Confusion Matrix -->
+      <div class="two-col-inner">
+        <div class="inner-label">Confusion Matrix</div>
+        <div id="cmChart"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MODULE 3 — REGRESSION
+  ══════════════════════════════════════ -->
+  <div class="panel fade-up">
+    <div class="panel-head">
+      <div style="display:flex;align-items:center;">
+        <span class="panel-title">Module 3 · Return Predictor</span>
+        <span class="model-badge lr">Linear Regression</span>
+      </div>
+      <span class="panel-tag">RELIANCE SAMPLE · NSE DAILY DATA</span>
+    </div>
+
+    <div class="reg-grid">
+      <div class="reg-stat">
+        <div class="reg-stat-label">MSE · Mean Squared Error</div>
+        <div class="reg-stat-val">{{ metrics.reg_mse }}</div>
+        <div class="reg-stat-desc">
+          Average squared difference between predicted and actual daily returns.
+          Lower values indicate tighter predictions. Values near zero reflect high predictive accuracy on the test split.
+        </div>
+      </div>
+      <div class="reg-stat">
+        <div class="reg-stat-label">R² · Coefficient of Determination</div>
+        <div class="reg-stat-val">{{ metrics.reg_r2 }}</div>
+        <div class="reg-stat-desc">
+          Proportion of variance in daily returns explained by the model.
+          Range 0 to 1 — values above 0.6 indicate a strong fit.
+          Computed on an 80/20 time-based train/test split.
+        </div>
+      </div>
+    </div>
+
+    <div class="feat-strip">
+      <div class="feat-strip-label">Feature Engineering</div>
+      <div class="feat-chips">
+        <span class="feat-chip"><span class="feature-dot" style="background:var(--cyan)"></span>Lag_1</span>
+        <span class="feat-chip"><span class="feature-dot" style="background:var(--cyan)"></span>Lag_2</span>
+        <span class="feat-chip"><span class="feature-dot" style="background:var(--cyan)"></span>Lag_3</span>
+        <span class="feat-chip"><span class="feature-dot" style="background:var(--cyan)"></span>Lag_4</span>
+        <span class="feat-chip"><span class="feature-dot" style="background:var(--cyan)"></span>Lag_5</span>
+        <span class="feat-chip"><span class="feature-dot" style="background:var(--gold)"></span>MA_5</span>
+        <span class="feat-chip"><span class="feature-dot" style="background:var(--gold)"></span>MA_10</span>
+      </div>
+      <div class="feat-note">
+        Train/Test split: 80% / 20% · Time-based (no shuffle) · Target: next-day % return &nbsp;·&nbsp;
+        Evaluate any NSE symbol via the <a href="/return-predict">Return Prediction</a> page.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MODULE 4 — CLUSTERING
+  ══════════════════════════════════════ -->
+  <div class="panel fade-up">
+    <div class="panel-head">
+      <div style="display:flex;align-items:center;">
+        <span class="panel-title">Module 4 · Investor Segmentation</span>
+        <span class="model-badge km">K-Means · 3 Clusters</span>
+      </div>
+      <span class="panel-tag">UNSUPERVISED · 5 FEATURES</span>
+    </div>
+
+    <div class="cluster-body">
+
+      <div class="cluster-desc">
+        K-Means clustering minimises inertia (within-cluster sum of squares) across
+        3 clusters using 10 random initialisations. Input features are standard-scaled
+        before fitting. Cluster labels are assigned by sorting centroids on mean age,
+        producing consistent Conservative / Moderate / Aggressive segmentation.
+        The assigned segment is surfaced automatically on the Dashboard Profiler.
+      </div>
+
+      <!-- Feature pills -->
+      <div class="inner-label">Input Features (5)</div>
+      <div class="feature-list" style="margin-bottom:18px;">
+        <span class="feature-pill"><span class="feature-dot" style="background:var(--cyan)"></span>Age</span>
+        <span class="feature-pill"><span class="feature-dot" style="background:var(--cyan)"></span>Annual Income</span>
+        <span class="feature-pill"><span class="feature-dot" style="background:var(--cyan)"></span>Investment Horizon</span>
+        <span class="feature-pill"><span class="feature-dot" style="background:var(--cyan)"></span>Loss Tolerance</span>
+        <span class="feature-pill"><span class="feature-dot" style="background:var(--cyan)"></span>Risk Score</span>
+      </div>
+
+      <!-- Cluster cards -->
+      <div class="inner-label">Cluster Assignments</div>
+      <div class="cluster-grid">
+
+        <div class="cluster-card" style="border-top-color:var(--cyan);">
+          <div class="cluster-id">Cluster 0</div>
+          <div class="cluster-name" style="color:var(--cyan);">Conservative Investor</div>
+          <div class="cluster-range">Age &gt; 57 · Capital preservation focus</div>
+        </div>
+
+        <div class="cluster-card" style="border-top-color:var(--gold);">
+          <div class="cluster-id">Cluster 1</div>
+          <div class="cluster-name" style="color:var(--gold);">Balanced Investor</div>
+          <div class="cluster-range">Age 36–57 · Growth with stability</div>
+        </div>
+
+        <div class="cluster-card" style="border-top-color:var(--green);">
+          <div class="cluster-id">Cluster 2</div>
+          <div class="cluster-name" style="color:var(--green);">Aggressive Investor</div>
+          <div class="cluster-range">Age &lt; 36 · High growth, high risk tolerance</div>
+        </div>
+
+      </div>
+
+      <div class="cluster-note">
+        Cluster is auto-assigned when you run the Investor Risk Profiler on the Dashboard. &nbsp;·&nbsp;
+        Centroid sorting ensures reproducible label semantics across re-fits.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+<script>
+/* ── CLOCK ── */
+(function tick(){
+  document.getElementById('clockEl').textContent =
+    new Date().toLocaleTimeString('en-IN',{hour12:false}) + ' IST';
+  setTimeout(tick,1000);
+})();
+
+/* ── CONFUSION MATRIX — theme override ── */
+(function(){
+  var cmData = {{ metrics.cm_json | safe }};
+
+  var layout = Object.assign({}, cmData.layout || {}, {
+    paper_bgcolor: 'transparent',
+    plot_bgcolor:  'transparent',
+    font: { family: 'IBM Plex Mono', color: '#7A9BBD', size: 10 },
+    margin: { l: 58, r: 10, t: 10, b: 48 },
+  });
+
+  /* restyle colorscale to match terminal palette */
+  if(cmData.data && cmData.data[0]){
+    var t = cmData.data[0];
+    t.colorscale = [
+      [0,   'rgba(6,13,24,1)'],
+      [0.5, 'rgba(0,198,255,0.25)'],
+      [1,   'rgba(0,198,255,0.85)'],
+    ];
+    t.showscale = false;
+    t.xgap = 3; t.ygap = 3;
+    t.textfont = { family: 'IBM Plex Mono', size: 13, color: '#E4EEF8' };
+    t.hoverlabel = { bgcolor: '#0A1628', bordercolor: '#00C6FF', font: { family: 'IBM Plex Mono', size: 11 } };
+  }
+
+  /* axis styling */
+  if(layout.xaxis){
+    layout.xaxis.tickfont  = { family: 'IBM Plex Mono', size: 10, color: '#3A5878' };
+    layout.xaxis.linecolor = '#152843';
+    layout.xaxis.gridcolor = 'transparent';
+  }
+  if(layout.yaxis){
+    layout.yaxis.tickfont  = { family: 'IBM Plex Mono', size: 10, color: '#3A5878' };
+    layout.yaxis.linecolor = '#152843';
+    layout.yaxis.gridcolor = 'transparent';
+  }
+
+  Plotly.newPlot('cmChart', cmData.data, layout, {
+    responsive: true, displayModeBar: false,
+  });
+})();
+</script>
+</body>
+</html>
