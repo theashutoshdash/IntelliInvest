@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Portfolio lab · IntelliInvest{% endblock %}
+{% block section %}PORTFOLIO LAB{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">PORTFOLIO CONSTRUCTION</div><h1>Portfolio lab.</h1><p>Build and compare allocations across your selected NSE universe.</p></div></div>
+<section class="panel optimiser-panel">
+  <form method="post" class="optimizer-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="field"><span>Risk profile</span><select name="risk_category">{% for label in ['Conservative','Moderate','Aggressive'] %}<option value="{{ label }}" {% if risk_category == label %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="field field-grow"><span>NSE symbols</span><input name="symbols" list="nseSymbols" value="{{ symbols }}" required placeholder="RELIANCE,HDFCBANK,INFY,TCS"><datalist id="nseSymbols">{% for name, symbol in stock_universe.items() %}<option value="{{ symbol }}">{{ name }}</option>{% endfor %}</datalist></label>
+    <button class="button button-primary" type="submit">Build portfolio <span>↗</span></button>
+  </form>
+</section>
+{% if optimisation %}
+<section class="panel result-panel">
+  <div class="panel-heading"><div><div class="eyebrow">PORTFOLIO RESULT</div><h2>Target allocation</h2></div><span class="tag tag-success">Saved</span></div>
+  <div class="portfolio-stats"><div><small>Historical annualised return</small><strong class="{% if optimisation.annualised_historical_return >= 0 %}positive{% else %}negative{% endif %}">{{ '%+.2f'|format(optimisation.annualised_historical_return * 100) }}%</strong></div><div><small>Annualised volatility</small><strong>{{ '%.2f'|format(optimisation.annualised_volatility * 100) }}%</strong></div><div><small>Historical CVaR</small><strong>{{ '%.2f'|format(optimisation.historical_cvar * 100) }}%</strong></div><div><small>Observations</small><strong>{{ optimisation.observations }}</strong></div></div>
+  <div class="table-wrap"><table><thead><tr><th>ASSET</th><th>WEIGHT</th><th>ALLOCATION</th></tr></thead><tbody>{% for row in optimisation.allocations %}<tr><td><strong>{{ row.symbol }}</strong></td><td>{{ '%.2f'|format(row.weight_pct) }}%</td><td><div class="progress-track allocation-track"><i style="width: {{ row.weight_pct }}%"></i></div></td></tr>{% endfor %}</tbody></table></div>
+  {% if optimisation.excluded_symbols %}<p class="form-note-text">Not included due to limited price history: {{ optimisation.excluded_symbols|join(', ') }}.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

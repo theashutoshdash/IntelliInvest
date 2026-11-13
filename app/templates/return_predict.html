@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Return research · IntelliInvest{% endblock %}
+{% block section %}RETURN RESEARCH{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">QUANTITATIVE RESEARCH</div><h1>Return research.</h1><p>Evaluate a short-horizon estimate for an NSE instrument.</p></div></div>
+<section class="panel forecast-form-panel">
+  <form method="post" class="optimizer-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="field"><span>NSE ticker</span><input name="symbol" value="{{ symbol }}" required placeholder="RELIANCE"></label>
+    <label class="field"><span>Historical window</span><select name="period"><option value="2y" {% if period == '2y' %}selected{% endif %}>2 years</option><option value="3y" {% if period == '3y' %}selected{% endif %}>3 years</option><option value="5y" {% if period == '5y' %}selected{% endif %}>5 years</option><option value="max" {% if period == 'max' %}selected{% endif %}>Maximum</option></select></label>
+    <button class="button button-primary" type="submit">Run research <span>↗</span></button>
+  </form>
+</section>
+{% if result %}
+<section class="panel result-panel">
+  <div class="panel-heading"><div><div class="eyebrow">{{ result.symbol }} · {{ result.as_of }}</div><h2>Five-session estimate</h2></div><span class="tag {% if result.model_has_edge %}tag-success{% else %}tag-warning{% endif %}">{% if result.model_has_edge %}Benchmark passed{% else %}No measured edge{% endif %}</span></div>
+  <div class="forecast-hero"><div><small>Modelled return</small><strong class="{% if result.forecast_return >= 0 %}positive{% else %}negative{% endif %}">{{ '%+.2f'|format(result.forecast_return * 100) }}%</strong><span>Reference price · ₹{{ '{:,.2f}'.format(result.latest_price) }}</span></div><div class="forecast-range"><small>Estimated range</small><strong>{{ '%+.2f'|format(result.forecast_low * 100) }}% to {{ '%+.2f'|format(result.forecast_high * 100) }}%</strong></div></div>
+  <div class="chart-wrap chart-medium"><canvas id="forecastChart" aria-label="Actual versus predicted returns"></canvas></div>
+  <script>window.iiForecastChart = {{ result.chart|tojson }};</script>
+</section>
+{% endif %}
+{% endblock %}

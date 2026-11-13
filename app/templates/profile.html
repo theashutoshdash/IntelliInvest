@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Profile · IntelliInvest{% endblock %}
+{% block section %}PROFILE{% endblock %}
+{% block content %}
+{% set user_label = current_user.display_name or current_user.full_name %}
+{% set avatar_src = url_for('main.profile_avatar', filename=current_user.avatar_file) if current_user.avatar_file else current_user.avatar_url %}
+<div class="page-heading"><div><div class="eyebrow">PERSONAL WORKSPACE</div><h1>Profile & settings.</h1><p>Manage your identity, appearance and research history.</p></div></div>
+<section class="panel profile-panel profile-overview">
+  <div class="profile-identity">{% if avatar_src %}<img src="{{ avatar_src }}" alt="Profile photo" class="profile-avatar">{% else %}<div class="profile-avatar profile-avatar-fallback">{{ user_label[:1]|upper }}</div>{% endif %}<div><div class="eyebrow">ACCOUNT</div><h2>{{ user_label }}</h2><p>{{ current_user.email }}</p></div></div>
+  <div class="profile-meta"><div><small>MEMBER SINCE</small><strong>{{ current_user.created_at.strftime('%d %b %Y') }}</strong></div><div><small>WATCHLISTS</small><strong>{{ watchlist_count }} symbols</strong></div><div><small>ASSESSMENTS</small><strong>{{ assessments|length }}</strong></div><div><small>PORTFOLIO RUNS</small><strong>{{ portfolio_runs|length }}</strong></div></div>
+</section>
+<div class="content-grid profile-settings-grid">
+  <section class="panel">
+    <div class="panel-heading"><div><div class="eyebrow">PROFILE PREFERENCES</div><h2>Personal details</h2></div></div>
+    <form method="post" action="{{ url_for('main.profile_settings') }}" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field"><span>Display name</span><input name="display_name" value="{{ user_label }}" maxlength="48" minlength="2" required></label>
+      <label class="field"><span>Appearance</span><select id="profileTheme" name="theme"><option value="dark" {% if current_user.theme == 'dark' %}selected{% endif %}>Dark · Obsidian</option><option value="light" {% if current_user.theme == 'light' %}selected{% endif %}>Light · Ivory</option></select></label>
+      <button class="button button-primary" type="submit">Save preferences</button>
+    </form>
+  </section>
+  <section class="panel">
+    <div class="panel-heading"><div><div class="eyebrow">PROFILE IMAGE</div><h2>Update photo</h2></div></div>
+    <form method="post" action="{{ url_for('main.profile_avatar_upload') }}" enctype="multipart/form-data" class="stack-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field"><span>Choose a JPG, PNG or WebP image</span><input type="file" name="avatar" accept="image/jpeg,image/png,image/webp" required></label>
+      <button class="button button-secondary" type="submit">Upload profile photo</button>
+    </form>
+  </section>
+</div>
+<section class="panel profile-advanced-panel">
+  <div class="panel-heading"><div><div class="eyebrow">ADVANCED</div><h2>Model & system evaluation</h2><p>Model metrics, data sources, validation design and operating notes.</p></div><a class="button button-secondary" href="{{ url_for('main.evaluation') }}">Open evaluation ↗</a></div>
+</section>
+<section class="panel"><div class="panel-heading"><div><div class="eyebrow">RISK HISTORY</div><h2>Recent assessments</h2></div><a class="text-link" href="{{ url_for('main.predictor') }}">New profile ↗</a></div>
+{% if assessments %}<div class="table-wrap"><table><thead><tr><th>DATE</th><th>PROFILE</th><th>RECORD</th></tr></thead><tbody>{% for item in assessments %}<tr><td>{{ item.created_at.strftime('%d %b %Y · %H:%M') }}</td><td><span class="risk-pill risk-{{ item.risk_category|lower }}">{{ item.risk_category }}</span></td><td>{{ item.input_snapshot.horizon }}y horizon</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state"><strong>No assessments yet</strong></div>{% endif %}</section>
+<section class="panel"><div class="panel-heading"><div><div class="eyebrow">PORTFOLIO HISTORY</div><h2>Recent portfolio runs</h2></div></div>
+{% if portfolio_runs %}<div class="table-wrap"><table><thead><tr><th>DATE</th><th>PROFILE</th><th>UNIVERSE</th><th>HISTORICAL CVaR</th></tr></thead><tbody>{% for run in portfolio_runs %}<tr><td>{{ run.created_at.strftime('%d %b %Y') }}</td><td>{{ run.risk_category }}</td><td>{{ run.symbols|length }} instruments</td><td>{{ '%.2f'|format(run.statistics.historical_tail_loss * 100) }}%</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state"><strong>No portfolio runs yet</strong></div>{% endif %}</section>
+{% endblock %}
+{% block scripts %}
+<script>
+  const profileTheme = document.getElementById('profileTheme');
+  profileTheme?.addEventListener('change', () => { document.body.dataset.theme = profileTheme.value; });
+</script>
+{% endblock %}

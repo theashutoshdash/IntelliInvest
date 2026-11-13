@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Research diagnostics · IntelliInvest{% endblock %}
+{% block section %}PROFILE / DIAGNOSTICS{% endblock %}
+{% block content %}
+<div class="page-heading"><div><div class="eyebrow">PRIVATE TECHNICAL WORKSPACE</div><h1>Research diagnostics.</h1><p>Model behaviour, validation, market-data pipeline and operating notes.</p></div><a class="button button-secondary" href="{{ url_for('main.profile') }}">← Profile</a></div>
+<section class="panel evaluation-system-panel">
+  <div class="panel-heading"><div><div class="eyebrow">SERVICE HEALTH</div><h2>System status</h2></div></div>
+  <div class="system-status-grid">
+    <div><small>Database</small><strong class="{% if system_status.database == 'Connected' %}positive{% else %}negative{% endif %}">{{ system_status.database }}</strong></div>
+    <div><small>Research data</small><strong>{{ system_status.dataset }}</strong></div>
+    <div><small>Market adapter</small><strong>{{ system_status.market_data }}</strong></div>
+  </div>
+</section>
+{% if metrics.error %}
+<section class="panel"><div class="empty-state"><strong>Risk model evaluation unavailable</strong><p>{{ metrics.error }}</p></div></section>
+{% else %}
+<section class="panel">
+  <div class="panel-heading"><div><div class="eyebrow">RISK CLASSIFIER</div><h2>Validation results</h2></div><span class="tag tag-neutral">{{ metrics.samples }} labelled rows · {{ metrics.version }}</span></div>
+  <div class="metric-grid evaluation-metrics">
+    <article class="metric-card"><div class="metric-label">5-FOLD CV ACCURACY</div><div class="metric-value">{{ '%.2f'|format(metrics.cv_accuracy * 100) }}%</div><div class="metric-foot">± {{ '%.2f'|format(metrics.cv_accuracy_std * 100) }} pp</div></article>
+    <article class="metric-card"><div class="metric-label">HOLDOUT ACCURACY</div><div class="metric-value">{{ '%.2f'|format(metrics.holdout_accuracy * 100) }}%</div><div class="metric-foot">Stratified holdout</div></article>
+    <article class="metric-card"><div class="metric-label">BALANCED ACCURACY</div><div class="metric-value">{{ '%.2f'|format(metrics.cv_balanced_accuracy * 100) }}%</div><div class="metric-foot">Mean across folds</div></article>
+    <article class="metric-card"><div class="metric-label">MACRO F1</div><div class="metric-value">{{ '%.2f'|format(metrics.cv_macro_f1 * 100) }}%</div><div class="metric-foot">Equal weight per class</div></article>
+    <article class="metric-card"><div class="metric-label">AGE-ONLY BENCHMARK</div><div class="metric-value">{{ '%.2f'|format(metrics.age_only_cv_accuracy * 100) }}%</div><div class="metric-foot">Diagnostic comparator</div></article>
+  </div>
+  <p class="evaluation-note">{{ metrics.dataset_note }}</p>
+</section>
+<section class="content-grid evaluation-grid">
+  <div class="panel"><div class="eyebrow">FEATURE IMPORTANCE</div><h2>Relative model influence</h2><p class="muted-copy">Impurity-based importance from the fitted Extra Trees ensemble. Importance is descriptive and does not establish causality.</p>
+    {% for feature, importance in metrics.feature_importance|dictsort(by='value', reverse=true) %}<div class="importance-row"><div><span>{{ feature.replace('_',' ')|title }}</span><strong>{{ '%.1f'|format(importance * 100) }}%</strong></div><div class="progress-track"><i style="width: {{ importance * 100 }}%"></i></div></div>{% endfor %}
+  </div>
+  <div class="panel"><div class="eyebrow">CLASSIFICATION PIPELINE</div><h2>Extra Trees classifier</h2>
+    <div class="evaluation-detail"><strong>Inputs</strong><p>Age, income, investment horizon, self-reported loss tolerance and investment experience. Values outside observed training ranges are flagged as extrapolation.</p></div>
+    <div class="evaluation-detail"><strong>Estimator</strong><p>400 randomized decision trees with balanced class weighting and a fixed random seed. The output is a probability distribution across Conservative, Moderate and Aggressive classes.</p></div>
+    <div class="evaluation-detail"><strong>Validation</strong><p>Five-fold stratified cross-validation, a stratified 20% holdout, balanced accuracy, macro F1 and an age-only baseline. These are dataset validation metrics, not verified suitability accuracy for a live population.</p></div>
+    <div class="evaluation-detail"><strong>Dataset limitation</strong><p>The included labelled investor data does not document its sampling or labelling protocol. Model scores can reflect patterns in those labels and must not be interpreted as a guarantee.</p></div>
+  </div>
+</section>
+{% endif %}
+<section class="content-grid evaluation-grid">
+  <div class="panel"><div class="eyebrow">PORTFOLIO CONSTRUCTION</div><h2>Historical CVaR optimiser</h2><p>Long-only constrained optimisation minimises empirical Conditional Value at Risk for aligned daily adjusted returns. Risk-category settings determine confidence level and position constraints. The output is based on the selected historical sample; it is not a forward-return maximiser.</p></div>
+  <div class="panel"><div class="eyebrow">RETURN RESEARCH</div><h2>Walk-forward model</h2><p>HistGradientBoostingRegressor uses lagged returns, realised volatility, moving-average distances, RSI and range features. A chronological holdout and TimeSeriesSplit with a purge gap reduce temporal leakage. Results are benchmarked against a zero-return estimate.</p></div>
+</section>
+<section class="content-grid evaluation-grid">
+  <div class="panel"><div class="eyebrow">MARKET DATA EXTRACTION</div><h2>Quote and history pipeline</h2>
+    <div class="evaluation-detail"><strong>Quote preference</strong><p>Fast quote fields are requested first. During an open cash session, five-minute bars can be used as a fallback. When no intraday quote is available, the latest adjusted daily close is returned with its own source and observation date.</p></div>
+    <div class="evaluation-detail"><strong>Resilience</strong><p>Requests have bounded timeouts and a retry. A last-good in-process cache is preserved on upstream failure rather than being overwritten by an empty response. Dashboard quote snapshots refresh more frequently during market hours.</p></div>
+    <div class="evaluation-detail"><strong>Refresh limits</strong><p>The app polls its top market ribbon every 30 seconds during the regular session and every three minutes outside it. Quote caching and upstream throttling mean these are refresh intervals, not a promise of exchange real-time delivery.</p></div>
+    <div class="evaluation-detail"><strong>Session calendar</strong><p>The session clock uses Asia/Kolkata time, a 09:00 pre-open window and the 09:15–15:30 regular cash session. Weekends and the published 2026 NSE holidays are handled from data/nse_holidays.json. Update that file from the <a class="text-link" href="https://www.nseindia.com/resources/exchange-communication-holidays?apiversion=v2" target="_blank" rel="noopener noreferrer">official NSE holiday calendar</a> when a new annual list is issued; special sessions need their own timetable entry.</p></div>
+    <div class="evaluation-detail"><strong>Provider</strong><p>Yahoo Finance is a third-party research-data source. It may delay, revise, omit or throttle data and should not be used as an execution or exchange reference feed.</p></div>
+  </div>
+  <div class="panel"><div class="eyebrow">RESEARCH DISCOVERY</div><h2>Dynamic stock shortlist</h2>
+    <div class="evaluation-detail"><strong>Candidate universe</strong><p>Each assessment samples candidates from the supported NSE stock universe and the curated large-, mid- and small-cap starter lists. Symbols without sufficient recent daily history are excluded from scoring.</p></div>
+    <div class="evaluation-detail"><strong>Signals</strong><p>Ranking uses 20-, 60- and 120-session price momentum, 20-session and 60-session realised volatility, one-year maximum drawdown and available average volume. Signal weights vary by risk category.</p></div>
+    <div class="evaluation-detail"><strong>Variation</strong><p>A fresh candidate sample and weighted selection from the strongest available names create a different shortlist on each assessment. Randomness changes candidate coverage, not the observed metrics or signal values.</p></div>
+  </div>
+</section>
+<section class="panel">
+  <div class="eyebrow">WATCHLIST UNIVERSES</div><h2>Preset and personal lists</h2>
+  <div class="evaluation-detail"><strong>Large-cap starter list · 15 symbols</strong><p>Curated liquid, widely followed large-cap names.</p></div>
+  <div class="evaluation-detail"><strong>Mid-cap starter list · 20 symbols</strong><p>Curated candidates associated with the supported mid-cap research universe.</p></div>
+  <div class="evaluation-detail"><strong>Small-cap starter list · 10 symbols</strong><p>Curated smaller-company candidates. These lists are starter universes, not guaranteed live rankings of every NSE-listed company by market capitalisation.</p></div>
+  <div class="evaluation-detail"><strong>Personal lists</strong><p>Users can clone a preset, create new lists, add or remove symbols, rename and delete personal lists. User lists are isolated by account.</p></div>
+</section>
+<section class="panel">
+  <div class="eyebrow">OPERATING DIAGNOSTICS</div><h2>Common errors</h2>
+  <div class="evaluation-detail"><strong>Market data unavailable</strong><p>Retry later. The provider may be throttling requests or may not publish intraday data for that instrument. The app retains the last usable cached history when available.</p></div>
+  <div class="evaluation-detail"><strong>Insufficient price history</strong><p>Newly listed, illiquid or unsupported symbols may not have enough aligned daily observations for portfolio optimisation or return validation.</p></div>
+  <div class="evaluation-detail"><strong>OAuth callback failure</strong><p>Confirm that the Client ID and current Client Secret belong to the active Google Cloud project and that the redirect URI matches exactly, including scheme, host and path.</p></div>
+  <div class="evaluation-detail"><strong>Database schema mismatch</strong><p>After changing SQLAlchemy models, create and apply a migration before restarting the production server.</p></div>
+  <div class="evaluation-detail"><strong>Deployment profile photo loss</strong><p>Local instance uploads are stored on the application filesystem. A production deployment with an ephemeral filesystem needs object storage or a persistent volume for durable profile photos.</p></div>
+</section>
+{% endblock %}

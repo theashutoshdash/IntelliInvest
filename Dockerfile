@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 FLASK_ENV=production SESSION_COOKIE_SECURE=true
+WORKDIR /srv/intellinvest
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN mkdir -p instance
+EXPOSE 5000
+CMD ["sh", "-c", "gunicorn --workers 2 --bind 0.0.0.0:${PORT:-5000} wsgi:app"]

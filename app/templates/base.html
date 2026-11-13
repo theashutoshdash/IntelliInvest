@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101820">
+  <title>{% block title %}IntelliInvest{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body data-theme="{{ current_user.theme if current_user.is_authenticated and current_user.theme else 'dark' }}">
+{% if current_user.is_authenticated %}
+{% set user_label = current_user.display_name or current_user.full_name %}
+{% set avatar_src = url_for('main.profile_avatar', filename=current_user.avatar_file) if current_user.avatar_file else current_user.avatar_url %}
+<div class="app-shell" id="appShell">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="{{ url_for('main.dashboard') }}">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="IntelliInvest" class="brand-mark">
+      <span class="brand-copy"><strong>intelli<span>invest</span></strong><small>PORTFOLIO INTELLIGENCE</small></span>
+    </a>
+    <div class="side-label">WORKSPACE</div>
+    <nav class="side-nav" aria-label="Main navigation">
+      <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}"><span class="nav-icon">▦</span><span>Overview</span></a>
+      <a class="nav-link {% if request.endpoint == 'main.predictor' %}active{% endif %}" href="{{ url_for('main.predictor') }}"><span class="nav-icon">⌁</span><span>Risk profile</span></a>
+      <a class="nav-link {% if request.endpoint == 'main.portfolio' %}active{% endif %}" href="{{ url_for('main.portfolio') }}"><span class="nav-icon">◫</span><span>Portfolio lab</span></a>
+      <a class="nav-link {% if request.endpoint == 'main.return_predict' %}active{% endif %}" href="{{ url_for('main.return_predict') }}"><span class="nav-icon">⌁</span><span>Return research</span></a>
+      <a class="nav-link {% if request.endpoint == 'main.watchlist' %}active{% endif %}" href="{{ url_for('main.watchlist') }}"><span class="nav-icon">☆</span><span>Watchlists</span></a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-bottom-actions">
+        <a class="workspace-note" href="{{ url_for('main.profile') }}"><span class="status-dot"></span><span><strong>Private workspace</strong><small>Profile settings</small></span><b>↗</b></a>
+      </div>
+      <div class="account-row">
+        {% if avatar_src %}<img class="avatar" src="{{ avatar_src }}" alt="Profile photo">{% else %}<span class="avatar avatar-fallback">{{ user_label[:1]|upper }}</span>{% endif %}
+        <div class="account-copy"><strong>{{ user_label }}</strong><small>{{ current_user.email }}</small></div>
+        <form action="{{ url_for('auth.logout') }}" method="post" class="logout-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="icon-button" type="submit" title="Sign out" aria-label="Sign out">↗</button>
+        </form>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-scrim" id="sidebarScrim"></div>
+  <div class="main-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu" id="mobileMenu" type="button" aria-label="Toggle navigation">☰</button>
+        <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">◂</button>
+        <div class="breadcrumb">INTELLIINVEST <span>/</span> {% block section %}WORKSPACE{% endblock %}</div>
+      </div>
+      <div class="topbar-right">
+        <div class="market-ticker" id="marketTicker" aria-live="polite"><span class="ticker-loading">Loading markets</span></div>
+        <div class="market-clock"><span class="market-status" id="marketStatus"><i></i> MARKET</span><small id="marketNextSession">Checking session</small></div>
+        <a class="topbar-profile" href="{{ url_for('main.profile') }}" title="Profile settings">
+          {% if avatar_src %}<img class="topbar-avatar" src="{{ avatar_src }}" alt="">{% else %}<span class="topbar-avatar">{{ user_label[:1]|upper }}</span>{% endif %}
+        </a>
+      </div>
+    </header>
+    <main class="content-area">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash flash-{{ category }}"><span>{{ message }}</span><button type="button" class="flash-close" aria-label="Dismiss">×</button></div>{% endfor %}</div>{% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+      <footer class="page-footer"><span>INTELLIINVEST · PRIVATE RESEARCH</span></footer>
+    </main>
+  </div>
+</div>
+{% else %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}<div class="login-flashes">{% for category, message in messages %}<div class="flash flash-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+  {% block public_content %}{% endblock %}
+{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

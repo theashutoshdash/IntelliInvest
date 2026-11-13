@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Risk profile · IntelliInvest{% endblock %}
+{% block section %}RISK PROFILE{% endblock %}
+{% block content %}
+<div class="page-heading heading-with-action">
+  <div><div class="eyebrow">INVESTOR PROFILE</div><h1>Your risk profile.</h1><p>Five inputs. One tailored research starting point.</p></div>
+  {% if result %}<a class="button button-secondary" href="{{ url_for('main.predictor') }}">New assessment</a>{% endif %}
+</div>
+<section class="panel form-panel predictor-panel predictor-clean">
+  <form method="post" action="{{ url_for('main.predictor') }}" class="stack-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <label class="field"><span>Age</span><input type="number" name="age" min="18" max="100" required value="{{ form_data.age }}" placeholder="Enter age"></label>
+      <label class="field"><span>Annual income</span><input type="number" name="income" min="1" step="1" required value="{{ form_data.income }}" placeholder="Enter income"></label>
+      <label class="field"><span>Investment horizon · years</span><input type="number" name="horizon" min="1" max="50" required value="{{ form_data.horizon }}" placeholder="Years"></label>
+      <label class="field"><span>Loss tolerance · %</span><input type="number" name="loss_tolerance" min="1" max="100" required value="{{ form_data.loss_tolerance }}" placeholder="Loss %"></label>
+      <label class="field field-full"><span>Investment experience</span><select name="experience" required><option value="0" {% if form_data.experience|string == '0' %}selected{% endif %}>New investor</option><option value="1" {% if form_data.experience|string == '1' %}selected{% endif %}>Some experience</option><option value="2" {% if form_data.experience|string == '2' %}selected{% endif %}>Experienced investor</option></select></label>
+    </div>
+    <button type="submit" class="button button-primary button-wide">Generate risk profile <span>↗</span></button>
+  </form>
+</section>
+{% if result %}
+<section class="panel result-panel" id="assessmentResult">
+  <div class="panel-heading"><div><div class="eyebrow">YOUR PROFILE</div><h2>{{ result.risk_category }}</h2></div><span class="tag tag-success">Saved</span></div>
+  <p class="result-guidance">{{ result.guidance }}</p>
+  <div class="recommendation-heading"><div><div class="eyebrow">DYNAMIC RESEARCH SHORTLIST</div><h3>Stocks to explore</h3></div><span class="tag tag-neutral">{{ result.recommendations|length }} instruments</span></div>
+  {% if result.recommendations %}
+  <div class="recommendation-grid">
+    {% for item in result.recommendations %}
+    <article class="recommendation-card">
+      <div class="recommendation-symbol">{{ item.symbol }}</div>
+      <div class="recommendation-reason">{{ item.reason }}</div>
+      <div class="recommendation-stats"><span>60D move <strong class="{% if item.momentum_60d_pct >= 0 %}positive{% else %}negative{% endif %}">{{ '%+.2f'|format(item.momentum_60d_pct) }}%</strong></span><span>20D volatility <strong>{{ '%.1f'|format(item.volatility_20d_pct) }}%</strong></span></div>
+      <a class="text-link" href="{{ url_for('main.return_predict', symbol=item.symbol) }}">Open research ↗</a>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty-state"><strong>Market history is temporarily unavailable.</strong><p>Your profile is saved. Refresh the assessment later to generate a market-backed shortlist.</p></div>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
