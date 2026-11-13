@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Sign in · IntelliInvest{% endblock %}
+{% block public_content %}
+<div class="login-page">
+  <section class="login-visual">
+    <div class="login-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" alt=""><span>intelli<strong>invest</strong></span></div>
+    <div class="visual-content">
+      <div class="eyebrow"><span class="eyebrow-line"></span> INVESTMENT RESEARCH, WITH DISCIPLINE</div>
+      <h1>Clarity for<br><em>considered</em><br>decisions.</h1>
+      <p>A focused workspace for investor profiling, portfolio risk analysis and market research.</p>
+      <div class="visual-stats">
+        <div><strong>01</strong><span>Understand<br>your risk profile</span></div>
+        <div><strong>02</strong><span>Measure portfolio<br>risk exposure</span></div>
+        <div><strong>03</strong><span>Validate models<br>before using them</span></div>
+      </div>
+    </div>
+    <div class="visual-foot"><span>PRIVATE WORKSPACE</span><span>BUILT FOR BETTER RESEARCH</span></div>
+    <div class="visual-orbit orbit-one"></div><div class="visual-orbit orbit-two"></div>
+  </section>
+  <section class="login-panel">
+    <div class="login-card">
+      <div class="login-mobile-brand"><img src="{{ url_for('static', filename='img/logo.png') }}" alt=""><strong>intelliinvest</strong></div>
+      <div class="login-kicker">SECURE ACCESS</div>
+      <h2>Welcome back.</h2>
+      <p class="login-intro">Sign in with your Google account to open your personal research workspace.</p>
+      <a class="google-button" href="{{ url_for('auth.login') }}">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.91c-.58 2.96-2.27 5.48-4.79 7.18l7.73 6C44.36 37.97 46.98 31.85 46.98 24.55Z"/><path fill="#FBBC05" d="M10.53 28.59A14.45 14.45 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.88.93 7.55 2.56 10.78l7.97-6.19Z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.8l-7.73-6c-2.14 1.44-4.88 2.3-8.17 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z"/></svg>
+        Continue with Google <span>→</span>
+      </a>
+      <div class="secure-note"><span class="secure-lock">⌑</span><span>Google verifies your identity. IntelliInvest does not store your Google password.</span></div>
+      <div class="login-divider"><span></span><small>YOUR DATA, YOUR WORKSPACE</small><span></span></div>
+      <ul class="login-benefits"><li><span>✓</span> Personal watchlists and saved assessments</li><li><span>✓</span> Portfolio research linked to your account</li><li><span>✓</span> No shared demo credentials</li></ul>
+    </div>
+    <div class="login-copyright">© {{ 2026 }} INTELLIINVEST <span>·</span> RESEARCH WORKSPACE</div>
+  </section>
+</div>
+{% endblock %}
