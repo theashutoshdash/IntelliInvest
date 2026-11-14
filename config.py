@@ -14,9 +14,16 @@ def _as_bool(value: str | None, default: bool = False) -> bool:
 class Config:
     ENV_NAME = os.getenv("FLASK_ENV", "development")
     SECRET_KEY = os.getenv("SECRET_KEY") or "local-development-only-change-before-deploy"
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", f"sqlite:///{(BASE_DIR / 'instance' / 'intellinvest.db').as_posix()}"
-    )
+    INSTANCE_DIR = (
+    Path("/tmp/instance")
+    if os.getenv("VERCEL")
+    else BASE_DIR / "instance"
+)
+
+SQLALCHEMY_DATABASE_URI = os.getenv(
+    "DATABASE_URL",
+    f"sqlite:///{(INSTANCE_DIR / 'intellinvest.db').as_posix()}"
+)
     if SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace(
             "postgres://", "postgresql+psycopg://", 1
