@@ -12,9 +12,9 @@ def create_app(test_config=None):
     if test_config:
         app.config.update(test_config)
 
+    if os.environ.get("VERCEL"):
+        app.instance_path = "/tmp/instance"
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
-    if app.config.get("TRUST_PROXY"):
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     configured_secret = os.getenv("SECRET_KEY", "")
     if app.config.get("ENV_NAME") == "production" and (
